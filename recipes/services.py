@@ -11,7 +11,14 @@ client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 UNIT_OPTIONS = ['tsp', 'tbsp', 'cup', 'fl_oz', 'g', 'oz', 'pinch', 'piece', 'can', 'package', 'whole', '']
 RECIPE_TYPE_OPTIONS = ['dinner', 'lunch', 'breakfast', 'dessert', 'snack', 'side', 'other']
 
+HEADERS = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.9',
+}
+
 EXTRACTION_PROMPT = f"""You are extracting a recipe. Return ONLY valid JSON, no other text, no markdown code fences.
+
 
 Use this exact schema:
 {{
@@ -122,7 +129,7 @@ def fetch_json_ld_recipe(url):
     JSON-LD script tags. Returns the raw recipe dict if found, else None.
     Does not attempt any text scraping.
     """
-    response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+    response = requests.get(url, headers=HEADERS, timeout=10)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, 'html.parser')
 
@@ -153,7 +160,7 @@ def fetch_page_text(url):
     Fetches the page and returns cleaned, visible text only.
     Does not look for JSON-LD data.
     """
-    response = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=10)
+    response = requests.get(url, headers=HEADERS, timeout=10)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, 'html.parser')
 

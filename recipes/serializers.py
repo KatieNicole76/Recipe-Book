@@ -16,10 +16,12 @@ class TagSerializer(serializers.ModelSerializer):
 
 class RecipeSerializer(serializers.ModelSerializer):
     ingredients = IngredientSerializer(many=True)
+    owner = serializers.ReadOnlyField(source='owner.username')
+    tags = serializers.SlugRelatedField(many=True, read_only=True, slug_field='name')
 
     class Meta:
         model = Recipe
-        fields = ['id', 'title', 'image', 'steps', 'recipe_type', 'is_meal_preppable', 'ingredients', 'created_at']
+        fields = ['id', 'title', 'image', 'steps', 'recipe_type', 'is_meal_preppable', 'ingredients', 'owner', 'tags', 'created_at']
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients')
