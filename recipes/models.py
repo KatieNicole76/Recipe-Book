@@ -58,3 +58,53 @@ class Ingredient(models.Model):
 
     def __str__(self):
         return f"{self.amount} {self.unit} {self.name}".strip()
+
+
+class ShoppingList(models.Model):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='shopping_lists')
+    name = models.CharField(max_length=100)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class ShoppingListItem(models.Model):
+    CATEGORY_CHOICES = [
+        ('frozen', 'Frozen'),
+        ('produce', 'Produce'),
+        ('dairy', 'Dairy'),
+        ('meat_seafood', 'Meat/Seafood'),
+        ('bakery', 'Bakery'),
+        ('pantry', 'Pantry'),
+        ('beverages', 'Beverages'),
+        ('cleaning', 'Cleaning'),
+        ('housewares', 'Housewares'),
+        ('other', 'Other'),
+    ]
+
+    shopping_list = models.ForeignKey(ShoppingList, on_delete=models.CASCADE, related_name='items')
+    name = models.CharField(max_length=200)
+    category = models.CharField(max_length=20, choices=CATEGORY_CHOICES, default='other')
+    amount = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    unit = models.CharField(max_length=20, choices=Ingredient.UNIT_CHOICES, blank=True)
+    is_checked = models.BooleanField(default=False)
+    checked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.name
+
+
+class IngredientCategory(models.Model):
+    """
+    Cache of item name -> grocery category, keyed by a lowercased/trimmed
+    name. Lets us skip the AI categorization call for any item we've
+    already categorized once (for anyone, not just the user who added it
+    first — categories are objective, not personal).
+    """
+    name = models.CharField(max_length=200, unique=True)
+    category = models.CharField(max_length=20, choices=ShoppingListItem.CATEGORY_CHOICES)
+
+    def __str__(self):
+        return f"{self.name} -> {self.category}"

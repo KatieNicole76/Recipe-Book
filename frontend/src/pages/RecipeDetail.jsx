@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ShoppingCart } from 'lucide-react';
 import { apiFetch } from '../api';
+import { unitConversion } from '../utils/UnitConversion';
+import AddToShoppingListModal from '../components/AddToShoppingListModal';
 
-const PEEK_OFFSET = 250; 
+const PEEK_OFFSET = 250;
 const EXPANDED_OFFSET = 50;
 
 function RecipeDetail() {
@@ -12,6 +14,7 @@ function RecipeDetail() {
   const [recipe, setRecipe] = useState(null);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
+  const [showAddToList, setShowAddToList] = useState(false);
   useEffect(() => {
     apiFetch(`/api/recipes/${id}/`)
       .then((res) => {
@@ -39,6 +42,7 @@ function RecipeDetail() {
   }
 
   const steps = (recipe.steps || '').split('\n').filter((s) => s.trim());
+  const allTags = [recipe.recipe_type, ...(recipe.tags || [])];
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -75,53 +79,70 @@ function RecipeDetail() {
           }
         }}
       >
-        <div className="flex justify-center pt-2 pb-2 cursor-grab 
-        active:cursor-grabbing">
-          <div className="w-8 h-0.5 rounded-full bg-blue" />
-        </div>
 
-        <div className="px-2 pb-16">
-          <h1 className="text-dark-green text-h3 mb-1">{recipe.title}</h1>
-
-          {recipe.tags?.length > 0 && (
-            <div className="flex gap-1 flex-wrap mb-6">
-              {recipe.tags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-blue text-subtitle-1"
-                >
+        <div className="pb-16">
+          <div className="relative rounded-t-xl bg-green w-full pb-1">
+            <div className="flex justify-center pt-2 pb-3 cursor-grab
+                active:cursor-grabbing">
+              <div className="w-8 h-0.5 rounded-full bg-dark-green" />
+            </div>
+            <h1 className="text-white text-h3 mb-1 ml-2">{recipe.title}</h1>
+            <div className="flex flex-wrap items-center gap-1 mb-2 ml-2">
+              {allTags.map((tag, i) => (
+                <span key={tag} className="text-white text-subtitle-1 flex items-center gap-1">
+                  {i > 0 && <span className="opacity-60">•</span>}
                   {tag}
                 </span>
               ))}
             </div>
-          )}
+            <button
+              type="button"
+              onClick={() => setShowAddToList(true)}
+              aria-label="Add to shopping list"
+              className="absolute bottom-2 right-2 bg-blue rounded-full p-1 flex items-center justify-center cursor-pointer"
+            >
+              <ShoppingCart size={16} className="text-beige" />
+            </button>
+          </div>
 
-          <h2 className="text-dark-green text-h4 mb-3">Ingredients</h2>
-          <ul className="mb-6 flex flex-col gap-2">
+          <h2 className="text-dark-green text-h4 mb-1 my-2 ml-1">Ingredients</h2>
+          <ul className="ml-4 mb-5 flex flex-col gap-2 list-disc list-outside">
             {recipe.ingredients?.map((ing) => (
-              <li key={ing.id} className="text-dark-green text-body1">
+              <li key={ing.id} className="text-dark-green text-body-1">
                 <span className="font-bold">
-                  {ing.amount ?? ''} {ing.unit}
-                </span>{' '}
+                  {unitConversion(ing.amount)} {ing.unit}
+                </span><span> </span>
                 {ing.name}
                 {ing.notes ? ` (${ing.notes})` : ''}
               </li>
             ))}
           </ul>
 
-          <h2 className="text-dark-green text-h3 mb-3">Directions</h2>
-          <ol className="flex flex-col gap-4">
+          <div className="flex justify-center my-2">
+            <div className="w-30 h-0.5 bg-green/50 rounded-full" />
+          </div>
+
+          <h2 className="text-dark-green text-h4 mb-2 my-3 ml-1">Directions</h2>
+          <ol className="flex flex-col gap-2 ml-2">
             {steps.map((step, i) => (
-              <li key={i} className="flex gap-3">
-                <span className="shrink-0 w-7 h-7 rounded-full bg-blue text-beige text-body1 flex items-center justify-center">
+              <li key={i} className="flex gap-1 items-start">
+                <span className="shrink-0 w-3 h-3 rounded-full bg-blue
+                 text-beige text-body1 flex items-center justify-center">
                   {i + 1}
                 </span>
-                <p className="text-dark-green text-body1 pt-0.5">{step}</p>
+                <p className="text-dark-green text-body-1">{step}</p>
               </li>
             ))}
           </ol>
         </div>
       </motion.div>
+
+      {showAddToList && (
+        <AddToShoppingListModal
+          onClose={() => setShowAddToList(false)}
+          ingredients={recipe.ingredients || []}
+        />
+      )}
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import { Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/Login.jsx';
-import RecipeList from './components/RecipeList.jsx';
+import RecipeList from './pages/RecipeList.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import AddRecipe from './pages/AddRecipe.jsx';
 import RecipeDetail from './pages/RecipeDetail';
+import ShoppingList from './pages/ShoppingList.jsx';
 
 function App() {
   return (
@@ -30,6 +31,14 @@ function App() {
         element={
           <ProtectedRoute>
             <RecipeDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/shopping-list"
+        element={
+          <ProtectedRoute>
+            <ShoppingList />
           </ProtectedRoute>
         }
       />
