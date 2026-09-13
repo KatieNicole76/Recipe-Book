@@ -177,6 +177,8 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 
+CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', '').split(',')
+
 # Comma-separated list of allowed frontend origins. Localhost is always
 # included for local dev; add your deployed Netlify URL here later via
 # the CORS_EXTRA_ORIGINS environment variable (e.g. once the frontend
