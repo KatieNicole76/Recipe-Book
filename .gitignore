@@ -1,3 +1,21 @@
-/.env
-/.env.development
+# Environment / secrets
+.env
+.env.development
+.env.production
 frontend/.env.development
+frontend/.env.production
+
+# Python / Django
+venv/
+__pycache__/
+*.pyc
+db.sqlite3
+staticfiles/
+media/
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+
+# Editor
+.vscode/
