@@ -49,20 +49,23 @@ export function prepareRecipeForSave(data) {
 
 /**
  * Saves a recipe. `imageFile`, if provided, is sent as a real file upload
- * (multipart) — used when the recipe came from a photo extraction and the
- * original photo should be attached. Otherwise sends plain JSON (covers
- * URL-extracted recipes, and recipes with no photo at all).
+ * (multipart) — used when the recipe came from a photo extraction (or the
+ * user picked a replacement photo while reviewing/editing) and it should be
+ * attached. Otherwise sends plain JSON (covers URL-extracted recipes,
+ * recipes with no photo at all, and edits that don't touch the photo).
  *
  * `data.tags` (a plain array of tag name strings, if present) is sent to
  * the backend as `tag_names` — the serializer's write-only field. The
  * backend's read-only `tags` field is what comes back in the response.
  *
- * recipeId is accepted for future edit/update support (PATCH to an existing
- * recipe) but isn't wired up on the backend yet — omitting it always creates
- * a new recipe via POST, same as today.
+ * recipeId, if provided, PATCHes that existing recipe instead of creating
+ * a new one via POST.
  */
 export async function saveRecipe(data, { imageFile = null, recipeId = null } = {}) {
   const tagNames = data.tags || [];
+  const isUpdate = recipeId != null;
+  const url = isUpdate ? `/api/recipes/${recipeId}/update/` : '/api/recipes/save/';
+  const method = isUpdate ? 'PATCH' : 'POST';
   let response;
 
   if (imageFile) {
@@ -75,16 +78,15 @@ export async function saveRecipe(data, { imageFile = null, recipeId = null } = {
     formData.append('tag_names', JSON.stringify(tagNames));
     formData.append('image_file', imageFile);
 
-    response = await apiFetch('/api/recipes/save/', {
-      method: 'POST',
-      body: formData,
-    });
+    response = await apiFetch(url, { method, body: formData });
   } else {
     const payload = { ...data, tag_names: tagNames };
     delete payload.tags; // backend's read field is 'tags', write field is 'tag_names' — don't send both
+    delete payload.image; // never send the existing image URL back as a write
+    delete payload.image_url; // no fetch-from-url support on update — only a fresh file upload changes the photo
 
-    response = await apiFetch('/api/recipes/save/', {
-      method: 'POST',
+    response = await apiFetch(url, {
+      method,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
@@ -96,4 +98,9 @@ export async function saveRecipe(data, { imageFile = null, recipeId = null } = {
   }
 
   return response.json();
+}
+
+export async function deleteRecipe(id) {
+  const response = await apiFetch(`/api/recipes/${id}/delete/`, { method: 'DELETE' });
+  if (!response.ok) throw new Error('Could not delete recipe');
 }

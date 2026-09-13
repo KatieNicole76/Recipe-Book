@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import CustomSelect from './CustomSelect';
 import Pill from './Pill';
 import CheckboxModal from './CheckboxModal';
@@ -32,12 +32,25 @@ function RecipeReviewForm({
   onSaved,
   onDiscard,
   saveButtonLabel = 'Save Recipe',
+  discardLabel = 'Discard & Start Over',
 }) {
   const [result, setResult] = useState({ tags: [], ...initialData });
   const [existingTags, setExistingTags] = useState([]);
   const [showTagModal, setShowTagModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [photoFile, setPhotoFile] = useState(imageFile);
+  const [photoPreview, setPhotoPreview] = useState(
+    imageFile ? URL.createObjectURL(imageFile) : initialData.image_url || initialData.image || null
+  );
+  const photoInputRef = useRef(null);
+
+  const handlePhotoChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
 
   useEffect(() => {
     apiFetch('/api/recipes/tags/')
@@ -118,7 +131,7 @@ function RecipeReviewForm({
 
     setSaving(true);
     try {
-      const saved = await saveRecipe(cleanedData, { imageFile, recipeId });
+      const saved = await saveRecipe(cleanedData, { imageFile: photoFile, recipeId });
       onSaved?.(saved);
     } catch (err) {
       setSaveError(err.message);
@@ -129,6 +142,31 @@ function RecipeReviewForm({
 
   return (
     <div className="pt-5">
+      <input
+        ref={photoInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handlePhotoChange}
+        className="hidden"
+      />
+
+      {photoPreview && (
+        <img src={photoPreview} alt="Recipe" className="mx-auto max-w-[120px] rounded-lg block mb-2" />
+      )}
+
+      <div className="flex flex-row gap-1 items-center justify-center mb-4">
+        <button
+          type="button"
+          onClick={() => photoInputRef.current.click()}
+          className="bg-blue text-beige px-2 py-0.5 rounded-xl cursor-pointer text-body-2"
+        >
+          Choose
+        </button>
+        <p className="text-dark-green text-body-2 opacity-70 truncate max-w-[200px]">
+          {photoFile ? photoFile.name : photoPreview ? 'Current photo' : 'No photo selected'}
+        </p>
+      </div>
+
       <label className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">Title</label>
       <input
         type="text"
@@ -258,7 +296,7 @@ function RecipeReviewForm({
           className="w-full text-dark-green text-body-1 py-1 mb-3 
           rounded-full font-bold mt-2 cursor-pointer border border-dark-green"
         >
-          Discard & Start Over
+          {discardLabel}
         </button>
       )}
     </div>

@@ -59,22 +59,36 @@ INSTALLED_APPS = [
     'storages',
 ]
 
-STORAGES = {
-    "default": {
-        "BACKEND": "storages.backends.s3.S3Storage",
-    },
-    "staticfiles": {
-        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
-    },
-}
+# Uses R2 (S3-compatible) storage when its credentials are configured in the
+# environment (e.g. on Railway in production). Falls back to local disk
+# storage under MEDIA_ROOT when they're not set, so recipe image uploads
+# work on a fresh local checkout without any cloud credentials.
+if os.getenv('R2_BUCKET_NAME'):
+    STORAGES = {
+        "default": {
+            "BACKEND": "storages.backends.s3.S3Storage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
-AWS_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY')
-AWS_STORAGE_BUCKET_NAME = os.getenv('R2_BUCKET_NAME')
-AWS_S3_ENDPOINT_URL = os.getenv('R2_ENDPOINT_URL')
-AWS_S3_CUSTOM_DOMAIN = os.getenv('R2_PUBLIC_DOMAIN')
-AWS_DEFAULT_ACL = None
-AWS_S3_FILE_OVERWRITE = False
+    AWS_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')
+    AWS_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY')
+    AWS_STORAGE_BUCKET_NAME = os.getenv('R2_BUCKET_NAME')
+    AWS_S3_ENDPOINT_URL = os.getenv('R2_ENDPOINT_URL')
+    AWS_S3_CUSTOM_DOMAIN = os.getenv('R2_PUBLIC_DOMAIN')
+    AWS_DEFAULT_ACL = None
+    AWS_S3_FILE_OVERWRITE = False
+else:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+        },
+    }
 
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',

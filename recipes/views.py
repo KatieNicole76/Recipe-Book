@@ -156,6 +156,65 @@ class RecipeDetailView(RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
 
+@api_view(['PATCH'])
+@permission_classes([IsAuthenticated])
+def update_recipe(request, pk):
+    recipe = get_object_or_404(Recipe, pk=pk, owner=request.user)
+    uploaded_image = request.FILES.get('image_file')
+
+    if uploaded_image:
+        # multipart form data — rebuild a plain dict, parsing JSON-in-a-string
+        # fields (ingredients, tag_names) back into real lists
+        data = {
+            'title': request.data.get('title', ''),
+            'recipe_type': request.data.get('recipe_type', 'other'),
+            'is_meal_preppable': request.data.get('is_meal_preppable') in ('true', 'True', True),
+            'steps': request.data.get('steps', ''),
+            'ingredients': json.loads(request.data.get('ingredients', '[]')),
+            'tag_names': json.loads(request.data.get('tag_names', '[]')),
+        }
+    else:
+        data = request.data.copy()
+        data.pop('image', None)      # never accept the existing image URL back as a write
+        data.pop('image_url', None)  # editing has no "fetch from URL" step — only a fresh upload changes the photo
+
+    serializer = RecipeSerializer(data=data)
+    if not serializer.is_valid():
+        return Response(serializer.errors, status=400)
+    validated = serializer.validated_data
+
+    recipe.title = validated['title']
+    recipe.recipe_type = validated['recipe_type']
+    recipe.is_meal_preppable = validated['is_meal_preppable']
+    recipe.steps = validated['steps']
+    recipe.save()
+
+    recipe.ingredients.all().delete()
+    for ingredient_data in validated['ingredients']:
+        Ingredient.objects.create(recipe=recipe, **ingredient_data)
+
+    recipe.tags.clear()
+    for name in validated.get('tag_names', []):
+        name = name.strip()
+        if name:
+            tag, _ = Tag.objects.get_or_create(name=name)
+            recipe.tags.add(tag)
+
+    if uploaded_image:
+        recipe.image = uploaded_image
+        recipe.save()
+
+    return Response(RecipeSerializer(recipe).data, status=200)
+
+
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_recipe(request, pk):
+    recipe = get_object_or_404(Recipe, pk=pk, owner=request.user)
+    recipe.delete()
+    return Response(status=204)
+
+
 class ShoppingListListCreateView(ListAPIView):
     """
     GET: all of the logged-in user's shopping lists, with items nested.

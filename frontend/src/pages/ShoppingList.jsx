@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronDown, ChevronRight, Trash2, Plus } from 'lucide-react';
 import CustomSelect from '../components/CustomSelect';
+import OptionsModal from '../components/OptionsModal';
 import { unitConversion } from '../utils/UnitConversion';
 import {
   fetchShoppingLists,
@@ -30,6 +32,10 @@ const CATEGORY_LABELS = {
   other: 'Other',
 };
 
+// How long a just-checked item stays crossed off in its own category
+// before it actually moves down into the "Checked off items" section.
+const CROSS_OFF_DELAY = 450;
+
 function ShoppingList() {
   const [lists, setLists] = useState([]);
   const [selectedListId, setSelectedListId] = useState(null);
@@ -38,6 +44,7 @@ function ShoppingList() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [checkedOpen, setCheckedOpen] = useState(false);
   const [itemInput, setItemInput] = useState('');
+  const [pendingIds, setPendingIds] = useState(new Set());
 
   useEffect(() => {
     fetchShoppingLists()
@@ -87,8 +94,7 @@ function ShoppingList() {
     setShowDeleteModal(false);
   };
 
-  const handleToggleItem = async (item) => {
-    const updatedItem = await toggleShoppingItem(item.id, !item.is_checked);
+  const applyToggledItem = (updatedItem) => {
     setLists((prev) =>
       prev.map((l) =>
         l.id !== selectedListId
@@ -96,6 +102,28 @@ function ShoppingList() {
           : { ...l, items: l.items.map((i) => (i.id === updatedItem.id ? updatedItem : i)) }
       )
     );
+  };
+
+  const handleToggleItem = (item) => {
+    if (item.is_checked) {
+      // unchecking: move back up immediately, no need for a cross-off delay
+      toggleShoppingItem(item.id, false).then(applyToggledItem);
+      return;
+    }
+
+    // checking: show it crossed off in place first, then move it down into
+    // the checked section once the animation has had time to play
+    setPendingIds((prev) => new Set(prev).add(item.id));
+    setTimeout(() => {
+      toggleShoppingItem(item.id, true).then((updatedItem) => {
+        applyToggledItem(updatedItem);
+        setPendingIds((prev) => {
+          const next = new Set(prev);
+          next.delete(item.id);
+          return next;
+        });
+      });
+    }, CROSS_OFF_DELAY);
   };
 
   const handleAddItem = async () => {
@@ -205,20 +233,31 @@ function ShoppingList() {
         <div key={category} className="mb-4">
           <h2 className="text-dark-green text-h4 mb-1">{CATEGORY_LABELS[category]}</h2>
           <div className="flex flex-col gap-1">
-            {items.map((item) => (
-              <label
-                key={item.id}
-                className="flex items-center gap-2 text-dark-green text-body-1 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={item.is_checked}
-                  onChange={() => handleToggleItem(item)}
-                  className="w-2 h-2 accent-blue cursor-pointer"
-                />
-                {itemLabel(item)}
-              </label>
-            ))}
+            <AnimatePresence initial={false}>
+              {items.map((item) => {
+                const crossedOff = pendingIds.has(item.id);
+                return (
+                  <motion.label
+                    key={item.id}
+                    layout
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className={`flex items-center gap-2 text-body-1 cursor-pointer transition-opacity duration-300 ${
+                      crossedOff ? 'text-dark-green opacity-60 line-through' : 'text-dark-green'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={crossedOff || item.is_checked}
+                      disabled={crossedOff}
+                      onChange={() => handleToggleItem(item)}
+                      className="w-2 h-2 accent-blue cursor-pointer"
+                    />
+                    {itemLabel(item)}
+                  </motion.label>
+                );
+              })}
+            </AnimatePresence>
           </div>
         </div>
       ))}
@@ -235,67 +274,42 @@ function ShoppingList() {
           </button>
           {checkedOpen && (
             <div className="flex flex-col gap-1">
-              {checkedItems.map((item) => (
-                <label
-                  key={item.id}
-                  className="flex items-center gap-2 text-dark-green opacity-60 line-through text-body-1 cursor-pointer"
-                >
-                  <input
-                    type="checkbox"
-                    checked={item.is_checked}
-                    onChange={() => handleToggleItem(item)}
-                    className="w-2 h-2 accent-blue cursor-pointer"
-                  />
-                  {itemLabel(item)}
-                </label>
-              ))}
+              <AnimatePresence initial={false}>
+                {checkedItems.map((item) => (
+                  <motion.label
+                    key={item.id}
+                    layout
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex items-center gap-2 text-dark-green opacity-60 line-through text-body-1 cursor-pointer"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={item.is_checked}
+                      onChange={() => handleToggleItem(item)}
+                      className="w-2 h-2 accent-blue cursor-pointer"
+                    />
+                    {itemLabel(item)}
+                  </motion.label>
+                ))}
+              </AnimatePresence>
             </div>
           )}
         </div>
       )}
 
-      {showDeleteModal && (
-        <div
-          className="fixed inset-0 p-1 bg-black/50 flex items-center justify-center z-50"
-          onClick={() => setShowDeleteModal(false)}
-        >
-          <div
-            className="bg-beige rounded-xl p-2 w-full max-w-[320px]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="text-dark-green text-h3 mb-2">List Options</h2>
-            <div className="flex flex-col gap-1">
-              <button
-                type="button"
-                onClick={handleClearAll}
-                className="w-full text-left px-2 py-1 rounded-lg text-dark-green text-body-1 cursor-pointer hover:bg-white/50"
-              >
-                Clear list
-              </button>
-              <button
-                type="button"
-                onClick={handleClearChecked}
-                className="w-full text-left px-2 py-1 rounded-lg text-dark-green text-body-1 cursor-pointer hover:bg-white/50"
-              >
-                Clear marked items
-              </button>
-              <button
-                type="button"
-                onClick={handleDeleteList}
-                className="w-full text-left px-2 py-1 rounded-lg text-dark-green text-body-1 cursor-pointer hover:bg-white/50"
-              >
-                Delete list
-              </button>
-            </div>
-            <button
-              onClick={() => setShowDeleteModal(false)}
-              className="w-full bg-blue text-beige p-1 rounded-full mt-2 cursor-pointer"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      <OptionsModal
+        open={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="List Options"
+        options={[
+          { label: 'Clear list', onClick: handleClearAll },
+          { label: 'Clear marked items', onClick: handleClearChecked },
+          { label: 'Delete list', onClick: handleDeleteList, destructive: true },
+        ]}
+      />
 
       {selectedList && (
         <div className="fixed bottom-0 inset-x-0 bg-beige border-t border-gray p-2 flex gap-1">

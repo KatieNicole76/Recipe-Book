@@ -41,8 +41,10 @@ def build_extraction_prompt(existing_tags=None):
         )
     else:
         tag_guidance = (
-            "This user has no existing tags yet, so choose sensible, common "
-            "ones (e.g. \"spicy\", \"one-pot\", \"vegetarian\", \"quick\")."
+            "This user has no existing tags yet, so choose sensible, common. " \
+            "Do not make tags for specific ingredients EXCLUDING meats. (For example, " \
+            "do not make a tag for carrots, but make one for chicken.) " \
+            "ones (e.g. \"pasta\", \"mexican\", \"soup\",)."
         )
 
     return f"""You are extracting a recipe. Return ONLY valid JSON, no other text, no markdown code fences.
@@ -51,7 +53,7 @@ Use this exact schema:
 {{
   "title": string,
   "recipe_type": one of {RECIPE_TYPE_OPTIONS},
-  "steps": string (one per line, when it mentions an ingredient,
+  "steps": string (one per line, do not number the steps, when it mentions an ingredient,
     use the exact name and amount from the ingredients list. Show the amount as a fraction instead of a decimal.
     use the abbreviated unit from the ingredients list. If no amount is given, do not make one up.),
   "ingredients": [
@@ -63,7 +65,7 @@ Use this exact schema:
     }}
   ],
   "tags": array of up to 5 short lowercase strings describing the recipe
-    (e.g. cuisine, main ingredient, cooking method, dietary notes)
+    (e.g. cuisine, main ingredient)
 }}
 
 Rules:

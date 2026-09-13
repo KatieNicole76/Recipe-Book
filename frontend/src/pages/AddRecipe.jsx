@@ -7,7 +7,7 @@ import UrlExtractForm from '../components/UrlExtractForm';
 import RecipeReviewForm from '../components/RecipeReviewForm';
 
 function AddRecipe() {
-  const [mode, setMode] = useState('photo');
+  const [mode, setMode] = useState('url');
   const [result, setResult] = useState(null);
   const [extractedImageFile, setExtractedImageFile] = useState(null);
 

@@ -4,6 +4,7 @@ import RecipeList from './pages/RecipeList.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import AddRecipe from './pages/AddRecipe.jsx';
 import RecipeDetail from './pages/RecipeDetail';
+import EditRecipe from './pages/EditRecipe.jsx';
 import ShoppingList from './pages/ShoppingList.jsx';
 
 function App() {
@@ -31,6 +32,14 @@ function App() {
         element={
           <ProtectedRoute>
             <RecipeDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/recipe/:id/edit"
+        element={
+          <ProtectedRoute>
+            <EditRecipe />
           </ProtectedRoute>
         }
       />
