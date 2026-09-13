@@ -240,6 +240,7 @@ function RecipeReviewForm({
                 options={UNITS}
                 labelFor={(u) => u || 'N/A'}
                 size="compact"
+                maxHeight="232px"
               />
             </div>
             <button

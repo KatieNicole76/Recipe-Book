@@ -53,7 +53,8 @@ function CheckboxModal({
       onClick={onClose}
     >
       <div
-        className="bg-beige rounded-xl p-2 w-full max-w-[320px] overflow-y-auto"
+        className="bg-beige rounded-xl p-2 w-full max-w-[320px] max-h-[75vh] overflow-y-auto
+          [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         onClick={(e) => e.stopPropagation()}
       >
         <h2 className="text-dark-green text-h3 mb-2">{title}</h2>

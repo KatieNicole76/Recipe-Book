@@ -229,38 +229,40 @@ function ShoppingList() {
         </div>
       )}
 
-      {uncheckedByCategory.map(({ category, items }) => (
-        <div key={category} className="mb-4">
-          <h2 className="text-dark-green text-h4 mb-1">{CATEGORY_LABELS[category]}</h2>
-          <div className="flex flex-col gap-1">
-            <AnimatePresence initial={false}>
-              {items.map((item) => {
-                const crossedOff = pendingIds.has(item.id);
-                return (
-                  <motion.label
-                    key={item.id}
-                    layout
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className={`flex items-center gap-2 text-body-1 cursor-pointer transition-opacity duration-300 ${
-                      crossedOff ? 'text-dark-green opacity-60 line-through' : 'text-dark-green'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={crossedOff || item.is_checked}
-                      disabled={crossedOff}
-                      onChange={() => handleToggleItem(item)}
-                      className="w-2 h-2 accent-blue cursor-pointer"
-                    />
-                    {itemLabel(item)}
-                  </motion.label>
-                );
-              })}
-            </AnimatePresence>
-          </div>
-        </div>
-      ))}
+      <AnimatePresence initial={false} mode="popLayout">
+        {uncheckedByCategory.map(({ category, items }) => (
+          <motion.div key={category} layout exit={{ opacity: 0 }} transition={{ duration: 0.3 }} className="mb-4">
+            <h2 className="text-dark-green text-h4 mb-1">{CATEGORY_LABELS[category]}</h2>
+            <div className="flex flex-col gap-1">
+              <AnimatePresence initial={false} mode="popLayout">
+                {items.map((item) => {
+                  const crossedOff = pendingIds.has(item.id);
+                  return (
+                    <motion.label
+                      key={item.id}
+                      layout
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className={`flex items-center gap-2 text-body-1 cursor-pointer transition-opacity duration-300 ${
+                        crossedOff ? 'text-dark-green opacity-60 line-through' : 'text-dark-green'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={crossedOff || item.is_checked}
+                        disabled={crossedOff}
+                        onChange={() => handleToggleItem(item)}
+                        className="w-2 h-2 accent-blue cursor-pointer"
+                      />
+                      {itemLabel(item)}
+                    </motion.label>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+          </motion.div>
+        ))}
+      </AnimatePresence>
 
       {checkedItems.length > 0 && (
         <div className="mb-4">
@@ -274,7 +276,7 @@ function ShoppingList() {
           </button>
           {checkedOpen && (
             <div className="flex flex-col gap-1">
-              <AnimatePresence initial={false}>
+              <AnimatePresence initial={false} mode="popLayout">
                 {checkedItems.map((item) => (
                   <motion.label
                     key={item.id}

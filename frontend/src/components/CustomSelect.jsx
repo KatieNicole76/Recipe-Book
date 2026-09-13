@@ -1,7 +1,7 @@
 import * as Select from '@radix-ui/react-select';
 import { ChevronDown, Check } from 'lucide-react';
 
-function CustomSelect({ value, onChange, options, labelFor, placeholder = 'Select...', size = 'default' }) {
+function CustomSelect({ value, onChange, options, labelFor, placeholder = 'Select...', size = 'default', maxHeight = '256px' }) {
   const getLabel = (opt) => {
     if (labelFor) return labelFor(opt);
     if (typeof opt === 'object') return opt.label;
@@ -30,7 +30,10 @@ function CustomSelect({ value, onChange, options, labelFor, placeholder = 'Selec
           position="popper"
           sideOffset={4}
         >
-          <Select.Viewport className="p-1 max-h-64 overflow-y-auto">
+          <Select.Viewport
+            className="p-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+            style={{ maxHeight }}
+          >
             {options.map((opt) => (
               <Select.Item
                 key={getValue(opt)}

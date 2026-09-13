@@ -44,7 +44,9 @@ def build_extraction_prompt(existing_tags=None):
             "This user has no existing tags yet, so choose sensible, common. " \
             "Do not make tags for specific ingredients EXCLUDING meats. (For example, " \
             "do not make a tag for carrots, but make one for chicken.) " \
-            "ones (e.g. \"pasta\", \"mexican\", \"soup\",)."
+            "ones (e.g. \"pasta\", \"mexican\", \"soup\",)." \
+            "Do not make tags for meal types (e.g. \"dinner\", \"lunch\", \"breakfast\"). " \
+            "Do not make tags for dietary restrictions (e.g. \"gluten-free\", \"vegan\"). " \
         )
 
     return f"""You are extracting a recipe. Return ONLY valid JSON, no other text, no markdown code fences.
@@ -64,7 +66,7 @@ Use this exact schema:
       "notes": string (e.g. "chopped", "diced", or empty string)
     }}
   ],
-  "tags": array of up to 5 short lowercase strings describing the recipe
+  "tags": array of up to 5 short capitalized strings describing the recipe
     (e.g. cuisine, main ingredient)
 }}
 
