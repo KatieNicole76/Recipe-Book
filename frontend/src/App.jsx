@@ -2,10 +2,14 @@ import { Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/Login.jsx';
 import RecipeList from './pages/RecipeList.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
+import SuperuserRoute from './components/SuperuserRoute.jsx';
 import AddRecipe from './pages/AddRecipe.jsx';
 import RecipeDetail from './pages/RecipeDetail';
 import EditRecipe from './pages/EditRecipe.jsx';
 import ShoppingList from './pages/ShoppingList.jsx';
+import AddUser from './pages/AddUser.jsx';
+import UserList from './pages/UserList.jsx';
+import EditUser from './pages/EditUser.jsx';
 
 function App() {
   return (
@@ -49,6 +53,30 @@ function App() {
           <ProtectedRoute>
             <ShoppingList />
           </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/users/new"
+        element={
+          <SuperuserRoute>
+            <AddUser />
+          </SuperuserRoute>
+        }
+      />
+      <Route
+        path="/admin/users"
+        element={
+          <SuperuserRoute>
+            <UserList />
+          </SuperuserRoute>
+        }
+      />
+      <Route
+        path="/admin/users/:id/edit"
+        element={
+          <SuperuserRoute>
+            <EditUser />
+          </SuperuserRoute>
         }
       />
     </Routes>

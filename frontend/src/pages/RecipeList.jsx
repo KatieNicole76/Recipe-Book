@@ -1,14 +1,16 @@
 import { useState, useEffect } from 'react';
 import { apiFetch } from '../api';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Pill from '../components/Pill';
 import CheckboxModal from '../components/CheckboxModal';
+import OptionsModal from '../components/OptionsModal';
 import Book from '../assets/book.png';
 import Shopping from '../assets/shopping.png';
 import Plus from '../assets/plus.png';
 import SearchIcon from '../assets/search.png';
 import Filter from '../assets/filter.png';
+import AccountIcon from '../assets/account.svg';
 
 const RECIPE_TYPES = ['dinner', 'lunch', 'breakfast', 'dessert', 'side', 'snack', 'other'];
 const TYPE_LABELS = {
@@ -26,7 +28,14 @@ function RecipeList() {
   const [search, setSearch] = useState('');
   const [activeFilters, setActiveFilters] = useState([]);
   const [showTagPicker, setShowTagPicker] = useState(false);
-  const { username, logout } = useAuth();
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const { username, logout, isSuperuser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
   useEffect(() => {
     apiFetch('/api/recipes/')
@@ -61,11 +70,34 @@ function RecipeList() {
 
   return (
     <div>
-      <div className="flex flex-row justify-between">
+      <div className="flex flex-row justify-between items-start">
         <h1 className="text-dark-green text-h2 mt-3 ml-1">
           {username}'s <br /> Recipe Book
         </h1>
+        <button
+          type="button"
+          onClick={() => setShowAccountModal(true)}
+          aria-label="Account"
+          className="w-[32px] h-[32px] mt-3 mr-1 shrink-0"
+        >
+          <img src={AccountIcon} alt="" className="w-full h-full" />
+        </button>
       </div>
+
+      <OptionsModal
+        open={showAccountModal}
+        onClose={() => setShowAccountModal(false)}
+        title="Account"
+        options={[
+          ...(isSuperuser
+            ? [
+                { label: 'Add User', onClick: () => navigate('/admin/users/new') },
+                { label: 'Modify User', onClick: () => navigate('/admin/users') },
+              ]
+            : []),
+          { label: 'Logout', onClick: handleLogout, destructive: true },
+        ]}
+      />
 
       <div className="flex flex-row gap-3 mt-5 mb-3 ml-1">
         <Link to="/browse" aria-label="Recipe Book">

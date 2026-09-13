@@ -12,6 +12,7 @@ from recipes import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/recipes/', include('recipes.urls')),
+    path('api/users/', include('recipes.user_urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('<int:pk>/', views.RecipeDetailView.as_view(), name='recipe-detail'),
