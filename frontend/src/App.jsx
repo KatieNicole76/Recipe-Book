@@ -10,6 +10,7 @@ import ShoppingList from './pages/ShoppingList.jsx';
 import AddUser from './pages/AddUser.jsx';
 import UserList from './pages/UserList.jsx';
 import EditUser from './pages/EditUser.jsx';
+import EditTags from './pages/EditTags.jsx';
 
 function App() {
   return (
@@ -52,6 +53,14 @@ function App() {
         element={
           <ProtectedRoute>
             <ShoppingList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tags/edit"
+        element={
+          <ProtectedRoute>
+            <EditTags />
           </ProtectedRoute>
         }
       />

@@ -3,7 +3,7 @@ import CustomSelect from './CustomSelect';
 import Pill from './Pill';
 import CheckboxModal from './CheckboxModal';
 import { apiFetch } from '../api';
-import { parseAmountInput } from '../utils/UnitConversion';
+import { parseAmountInput, roundAmount, unitConversion } from '../utils/UnitConversion';
 import { prepareRecipeForSave, saveRecipe } from '../utils/recipeApi';
 
 const RECIPE_TYPES = ['dinner', 'lunch', 'breakfast', 'dessert', 'side', 'snack', 'other'];
@@ -34,7 +34,14 @@ function RecipeReviewForm({
   saveButtonLabel = 'Save Recipe',
   discardLabel = 'Discard & Start Over',
 }) {
-  const [result, setResult] = useState({ tags: [], ...initialData });
+  const [result, setResult] = useState(() => ({
+    tags: [],
+    ...initialData,
+    ingredients: (initialData.ingredients || []).map((ing) => ({
+      ...ing,
+      amount: ing.amount != null ? roundAmount(ing.amount) : null,
+    })),
+  }));
   const [existingTags, setExistingTags] = useState([]);
   const [showTagModal, setShowTagModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -229,7 +236,7 @@ function RecipeReviewForm({
             <input
               type="text"
               placeholder="amt"
-              defaultValue={ing.amount ?? ''}
+              defaultValue={unitConversion(ing.amount)}
               onBlur={(e) => updateIngredient(i, 'amount', parseAmountInput(e.target.value))}
               className="w-8 p-1 text-body-2 rounded-lg bg-white box-border placeholder:text-gray-400"
             />

@@ -38,6 +38,7 @@ const CROSS_OFF_DELAY = 450;
 
 function ShoppingList() {
   const [lists, setLists] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedListId, setSelectedListId] = useState(null);
   const [showNewListInput, setShowNewListInput] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -52,7 +53,8 @@ function ShoppingList() {
         setLists(data);
         if (data.length > 0) setSelectedListId(data[0].id);
       })
-      .catch(() => setLists([]));
+      .catch(() => setLists([]))
+      .finally(() => setLoading(false));
   }, []);
 
   const selectedList = lists.find((l) => l.id === selectedListId) || null;
@@ -166,7 +168,7 @@ function ShoppingList() {
         <div className="w-3.5 h-3.5" />
       </div>
 
-      {lists.length === 0 && !showNewListInput && (
+      {!loading && lists.length === 0 && !showNewListInput && (
         <div className="text-center mt-8">
           <p className="text-dark-green text-body-1 mb-3">You don't have any shopping lists yet.</p>
           <button
@@ -326,6 +328,7 @@ function ShoppingList() {
           <button
             type="button"
             onClick={handleAddItem}
+            onMouseDown={(e) => e.preventDefault()}
             className="bg-blue text-beige px-3 rounded-lg cursor-pointer text-body-2"
           >
             Add

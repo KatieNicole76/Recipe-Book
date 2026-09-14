@@ -95,6 +95,7 @@ function RecipeList() {
                 { label: 'Modify User', onClick: () => navigate('/admin/users') },
               ]
             : []),
+          { label: 'Edit Recipe Tags', onClick: () => navigate('/tags/edit') },
           { label: 'Logout', onClick: handleLogout, destructive: true },
         ]}
       />

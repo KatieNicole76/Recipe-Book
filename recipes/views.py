@@ -121,6 +121,14 @@ class TagListView(ListAPIView):
         return Tag.objects.filter(recipes__owner=self.request.user).distinct().order_by('name')
 
 
+@api_view(['DELETE'])
+@permission_classes([IsAuthenticated])
+def delete_tag(request, pk):
+    tag = get_object_or_404(Tag, pk=pk)
+    tag.delete()
+    return Response(status=204)
+
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def save_recipe_copy(request, recipe_id):

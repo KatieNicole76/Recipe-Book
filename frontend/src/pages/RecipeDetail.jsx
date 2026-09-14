@@ -62,7 +62,7 @@ function RecipeDetail() {
       <img
         src={recipe.image || 'https://placehold.co/600x800?text=No+Image'}
         alt={recipe.title}
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-[45vh] object-cover"
       />
 
       <Link
@@ -95,7 +95,7 @@ function RecipeDetail() {
         }}
       >
 
-        <div className="pb-16">
+        <div className="pb-35">
           <div
             className="relative rounded-t-xl bg-green w-full pb-1 cursor-grab
               active:cursor-grabbing touch-none"
@@ -139,7 +139,7 @@ function RecipeDetail() {
           <ul className="ml-4 mb-5 flex flex-col gap-2 list-disc list-outside">
             {recipe.ingredients?.map((ing) => (
               <li key={ing.id} className="text-dark-green text-body-1">
-                <span className="font-bold text-h4">
+                <span className="font-bold text-[20px]">
                   {unitConversion(ing.amount)} {ing.unit}
                 </span><span> </span>
                 {ing.name}
