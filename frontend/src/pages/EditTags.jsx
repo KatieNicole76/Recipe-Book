@@ -17,13 +17,18 @@ function EditTags() {
   }, []);
 
   const handleDelete = async () => {
-    const response = await apiFetch(`/api/recipes/tags/${tagToDelete.id}/`, { method: 'DELETE' });
-    if (!response.ok) {
-      setError('Could not delete tag');
-      return;
+    setError(null);
+    try {
+      const response = await apiFetch(`/api/recipes/tags/${tagToDelete.id}/`, { method: 'DELETE' });
+      if (!response.ok) {
+        setError(`Could not delete tag (status ${response.status})`);
+        return;
+      }
+      setTags((prev) => prev.filter((t) => t.id !== tagToDelete.id));
+      setTagToDelete(null);
+    } catch {
+      setError('Could not delete tag (network error)');
     }
-    setTags((prev) => prev.filter((t) => t.id !== tagToDelete.id));
-    setTagToDelete(null);
   };
 
   return (

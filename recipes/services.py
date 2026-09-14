@@ -14,7 +14,7 @@ UNIT_OPTIONS = ['tsp', 'tbsp', 'cup', 'fl_oz', 'g', 'oz', 'pinch', 'piece', 'can
 RECIPE_TYPE_OPTIONS = ['dinner', 'lunch', 'breakfast', 'dessert', 'snack', 'side', 'other']
 SHOPPING_CATEGORY_OPTIONS = [
     'frozen', 'produce', 'dairy', 'meat_seafood', 'bakery',
-    'pantry', 'beverages', 'cleaning', 'housewares', 'other',
+    'pantry', 'beverages', 'cleaning', 'housewares', 'toiletries', 'other',
 ]
 
 HEADERS = {
@@ -43,8 +43,7 @@ def build_extraction_prompt(existing_tags=None):
         tag_guidance = (
             "This user has no existing tags yet, so choose sensible, common. " \
             "Do not make tags for specific ingredients EXCLUDING meats. (For example, " \
-            "do not make a tag for carrots, but make one for chicken.) " \
-            "ones (e.g. \"pasta\", \"mexican\", \"soup\",)." \
+                "do not make a tag for carrots, but make one for chicken.) " \
             "Do not make tags for meal types (e.g. \"dinner\", \"lunch\", \"breakfast\"). " \
             "Do not make tags for dietary restrictions (e.g. \"gluten-free\", \"vegan\"). " \
         )
@@ -76,7 +75,7 @@ Rules:
 - For unit, pick the closest match from the allowed list. If none fit, attempt to convert to one that will. If you cannot, use "".
 - Preserve the original step wording as closely as possible rather than paraphrasing.
 - {tag_guidance}
-- Keep tags short (1-3 words each), lowercase, and genuinely useful for filtering — don't pad the list just to reach 5.
+- Keep tags short (1-3 words each), capitalized, and genuinely useful for filtering, don't pad the list just to reach 5.
 """
 
 
@@ -116,12 +115,12 @@ def categorize_shopping_item(name):
     outside SHOPPING_CATEGORY_OPTIONS.
     """
     prompt = f"""Categorize this grocery shopping list item into exactly one of these
-categories: {SHOPPING_CATEGORY_OPTIONS}.
+        categories: {SHOPPING_CATEGORY_OPTIONS}.
 
-Item: "{name}"
+    Item: "{name}"
 
-Return ONLY valid JSON, no other text, no markdown code fences, matching this schema:
-{{"category": one of {SHOPPING_CATEGORY_OPTIONS}}}"""
+    Return ONLY valid JSON, no other text, no markdown code fences, matching this schema:
+    {{"category": one of {SHOPPING_CATEGORY_OPTIONS}}}"""
 
     try:
         result = _call_claude_and_parse(prompt)
@@ -146,6 +145,15 @@ def get_shopping_item_category(name):
     category = categorize_shopping_item(name)
     IngredientCategory.objects.get_or_create(name=normalized, defaults={'category': category})
     return category
+
+
+def _capitalize_tags(result):
+    """
+    Ensures extracted tags are capitalized regardless of what the model
+    actually returned, rather than relying solely on the prompt.
+    """
+    result['tags'] = [t.strip().capitalize() for t in result.get('tags') or [] if t.strip()]
+    return result
 
 
 # ---------- image extraction ----------
@@ -176,7 +184,7 @@ def extract_recipe_from_image(image_file, existing_tags=None):
         },
     ]
 
-    return _call_claude_and_parse(content)
+    return _capitalize_tags(_call_claude_and_parse(content))
 
 
 # ---------- url fetching ----------
@@ -201,7 +209,7 @@ def extract_recipe_from_url(url, existing_tags=None):
     result = _call_claude_and_parse(content)
     result['image_url'] = image_url  # attach separately, not part of the LLM's job
 
-    return result
+    return _capitalize_tags(result)
 
 
 def fetch_json_ld_recipe(url):
