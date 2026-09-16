@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import PhotoExtractForm from '../components/PhotoExtractForm';
 import UrlExtractForm from '../components/UrlExtractForm';
 import RecipeReviewForm from '../components/RecipeReviewForm';
+import DemoTip from '../components/DemoTip';
 
 function AddRecipe() {
   const [mode, setMode] = useState('url');
@@ -29,6 +30,20 @@ function AddRecipe() {
 
   return (
     <div className="m-1">
+      {!result &&
+      <DemoTip className="mb-1">
+        AI extracts the full recipe automatically from a website link or a photo.
+        It can also take a video link and extract the recipe from the video description.
+      </DemoTip>
+    }
+    {result &&
+      <DemoTip className="mb-1">
+        It will automatically detect the recipe title, ingredients, and instructions. You can edit anything before saving. 
+        It will also suggests a category and tags for the recipe for easy filtering.
+
+      </DemoTip>
+    }
+
       <PageHeader title="Add a Recipe" backTo="/" />
 
       {!result && (

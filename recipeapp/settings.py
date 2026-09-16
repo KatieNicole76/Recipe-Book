@@ -223,6 +223,12 @@ REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
     ),
+    # Caps how many demo guest accounts a single IP can spin up per hour —
+    # the endpoint takes no credentials, so without this it'd be trivial to
+    # script into a flood of throwaway accounts.
+    'DEFAULT_THROTTLE_RATES': {
+        'demo_login': '10/hour',
+    },
 }
 
 SIMPLE_JWT = {

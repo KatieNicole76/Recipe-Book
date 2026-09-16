@@ -8,8 +8,9 @@ function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
-  const { login } = useAuth();
+  const { login, loginDemo } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -24,6 +25,19 @@ function LoginPage() {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTryDemo = async () => {
+    setError(null);
+    setDemoLoading(true);
+    try {
+      await loginDemo();
+      navigate('/');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDemoLoading(false);
     }
   };
 
@@ -59,9 +73,18 @@ function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue hover:bg-blue-dark text-beige text-body-1 py-2 rounded-full font-bold my-3 cursor-pointer"
+          className="w-full bg-blue hover:bg-blue-dark text-beige text-body-1 py-2 rounded-full font-bold my-3 cursor-pointer disabled:opacity-50"
         >
           {loading ? 'Logging in...' : 'Log In'}
+        </button>
+
+        <button
+          type="button"
+          onClick={handleTryDemo}
+          disabled={demoLoading}
+          className="w-full bg-transparent border border-dark-green text-dark-green text-body-1 py-2 rounded-full font-bold cursor-pointer disabled:opacity-50 mb-3"
+        >
+          {demoLoading ? 'Starting demo...' : 'Try the Demo'}
         </button>
       </form>
     </div>

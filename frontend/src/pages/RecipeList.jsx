@@ -5,6 +5,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import OptionsModal from '../components/OptionsModal';
 import HoverIcon from '../components/HoverIcon';
 import RecipeGrid from '../components/RecipeGrid';
+import DemoTip from '../components/DemoTip';
 import Book from '../assets/book.png';
 import BookDarker from '../assets/book-darker.png';
 import Shopping from '../assets/shopping.png';
@@ -17,7 +18,7 @@ import AccountIconDarker from '../assets/account-darker.svg';
 function RecipeList() {
   const [recipes, setRecipes] = useState([]);
   const [showAccountModal, setShowAccountModal] = useState(false);
-  const { username, logout, isSuperuser } = useAuth();
+  const { username, logout, isSuperuser, isDemo } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -34,9 +35,13 @@ function RecipeList() {
 
   return (
     <div>
+      <DemoTip>
+        Demo Mode: This account and its data are temporary. 
+      </DemoTip>
+
       <div className="flex flex-row justify-between items-start">
         <h1 className="text-dark-green text-h2 mt-3 ml-1">
-          {username}'s <br /> Recipe Book
+          {isDemo ? 'Demo User' : username}'s <br /> Recipe Book
         </h1>
         <button
           type="button"

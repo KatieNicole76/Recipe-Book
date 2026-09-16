@@ -10,6 +10,7 @@ import AddToShoppingListModal from '../components/AddToShoppingListModal';
 import OptionsModal from '../components/OptionsModal';
 import ConfirmModal from '../components/ConfirmModal';
 import ErrorText from '../components/ErrorText';
+import DemoTip from '../components/DemoTip';
 import VideoPlayerModal from '../components/VideoPlayerModal';
 import HoverIcon from '../components/HoverIcon';
 import OptionsIcon from '../assets/options.svg';
@@ -100,6 +101,7 @@ function RecipeDetailPage() {
   const steps = (recipe.steps || '').split('\n').filter((s) => s.trim());
   const allTags = [recipe.recipe_type, ...(recipe.tags || [])];
   const isOwner = recipe.owner === username;
+  const ownerLabel = recipe.owner?.startsWith('demo_') ? 'Demo User' : recipe.owner;
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -116,6 +118,12 @@ function RecipeDetailPage() {
           flex items-center justify-center z-20">
         <ChevronLeft size={12} className="text-beige" />
       </Link>
+
+      <div className="fixed top-0 inset-x-0 z-30">
+        {!isOwner && <DemoTip>
+          This is anoter users recipe. Tap + to save it to your own cookbook, as-is or edited first.`
+        </DemoTip> }
+      </div>
 
       <motion.div
         className="absolute left-0 right-0 bottom-0 bg-beige 
@@ -207,7 +215,7 @@ function RecipeDetailPage() {
               ) : (
                 <>
                   <span className="text-white font-mono font-normal tracking-widest text-[11px] opacity-80 truncate max-w-[200px] mr-auto ml-2">
-                    From {recipe.owner}'s Cook Book
+                    From {ownerLabel}'s Cook Book
                   </span>
                   {(recipe.video || (recipe.source_url && isTiktokUrl(recipe.source_url))) && (
                     <button

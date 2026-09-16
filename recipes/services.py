@@ -10,7 +10,7 @@ from django.conf import settings
 from django.core.files.base import ContentFile
 from bs4 import BeautifulSoup
 
-from .models import IngredientCategory
+from .models import IngredientCategory, Recipe, Ingredient
 
 
 client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
@@ -257,6 +257,38 @@ def download_tiktok_video(url):
             video_path = ydl.prepare_filename(info)
             with open(video_path, 'rb') as f:
                 return f.read()
+
+
+def copy_recipe_for_user(original, owner):
+    """
+    Clones a recipe verbatim for a new owner — the "Save to your cookbook"
+    flow, and demo-account seeding. saved_from marks it as a copy so it's
+    excluded from the combined Browse list (otherwise it'd show up twice,
+    once for each owner).
+    """
+    copy = Recipe.objects.create(
+        owner=owner,
+        title=original.title,
+        image=original.image,
+        video=original.video,
+        source_url=original.source_url,
+        steps=original.steps,
+        recipe_type=original.recipe_type,
+        is_meal_preppable=original.is_meal_preppable,
+        saved_from=original,
+    )
+
+    for ingredient in original.ingredients.all():
+        Ingredient.objects.create(
+            recipe=copy,
+            name=ingredient.name,
+            amount=ingredient.amount,
+            unit=ingredient.unit,
+            notes=ingredient.notes,
+        )
+
+    copy.tags.set(original.tags.all())
+    return copy
 
 
 def apply_tiktok_media(recipe, url):

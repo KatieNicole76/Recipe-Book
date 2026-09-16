@@ -1,5 +1,6 @@
 import { Routes, Route } from 'react-router-dom';
 import LoginPage from './pages/Login.jsx';
+import DemoEntry from './pages/DemoEntry.jsx';
 import RecipeList from './pages/RecipeList.jsx';
 import ProtectedRoute from './components/ProtectedRoute.jsx';
 import SuperuserRoute from './components/SuperuserRoute.jsx';
@@ -18,6 +19,7 @@ function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/demo" element={<DemoEntry />} />
       <Route
         path="/"
         element={

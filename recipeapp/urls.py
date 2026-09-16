@@ -8,6 +8,7 @@ from django.conf.urls.static import static
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from recipes import views
+from recipes.demo import demo_login
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -15,5 +16,6 @@ urlpatterns = [
     path('api/users/', include('recipes.user_urls')),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('api/demo-login/', demo_login, name='demo-login'),
     path('<int:pk>/', views.RecipeDetailView.as_view(), name='recipe-detail'),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

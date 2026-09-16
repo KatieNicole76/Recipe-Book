@@ -22,8 +22,10 @@ from .services import (
     is_tiktok_url,
     fetch_tiktok_info,
     apply_tiktok_media,
+    copy_recipe_for_user,
     get_shopping_item_category,
 )
+from .demo import is_demo_user, same_demo_partition, check_and_increment_demo_limit, DEMO_EXTRACTION_LIMIT, DEMO_CATEGORIZATION_LIMIT
 from .unit_conversion import convert_amount
 
 logger = logging.getLogger(__name__)
@@ -43,6 +45,9 @@ def extract_recipe(request):
     if not image_file:
         return Response({'error': 'No image provided'}, status=status.HTTP_400_BAD_REQUEST)
 
+    if not check_and_increment_demo_limit(request.user, 'extraction_count', DEMO_EXTRACTION_LIMIT):
+        return Response({'error': "You've reached the demo's extraction limit. Thanks for trying it out!"}, status=429)
+
     try:
         recipe_data = extract_recipe_from_image(image_file, existing_tags=_user_tag_names(request.user))
     except ValueError as e:
@@ -57,6 +62,9 @@ def extract_recipe_from_url_view(request):
     url = request.data.get('url')
     if not url:
         return Response({'error': 'No URL provided'}, status=400)
+
+    if not check_and_increment_demo_limit(request.user, 'extraction_count', DEMO_EXTRACTION_LIMIT):
+        return Response({'error': "You've reached the demo's extraction limit. Thanks for trying it out!"}, status=429)
 
     try:
         if is_tiktok_url(url):
@@ -84,6 +92,8 @@ def save_recipe(request):
     # new recipe is a fork of saved_from, not a from-scratch creation, so a
     # photo/video the user didn't touch should still carry over from it.
     saved_from = Recipe.objects.filter(pk=request.data.get('saved_from')).first()
+    if saved_from and not same_demo_partition(request.user, saved_from.owner):
+        saved_from = None  # cross-partition fork attempt — silently ignore, not a real fork
 
     if uploaded_image:
         # multipart form data — rebuild a plain dict, parsing JSON-in-a-string
@@ -155,15 +165,20 @@ class RecipeListView(ListAPIView):
 
 class BrowseRecipeListView(ListAPIView):
     """
-    The combined family cookbook — every original recipe anyone has added.
-    Excludes saved copies (saved_from is set) so a recipe someone else
-    already saved into their own cookbook doesn't show up a second time.
+    The combined family cookbook — every original recipe anyone on the same
+    side of the demo/real wall has added. Excludes saved copies (saved_from
+    is set) so a recipe someone else already saved into their own cookbook
+    doesn't show up a second time. Demo accounts only ever see other demo
+    accounts' recipes here, never real family recipes, and vice versa.
     """
     serializer_class = RecipeSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
-        return Recipe.objects.filter(saved_from__isnull=True).order_by('-created_at')
+        return Recipe.objects.filter(
+            saved_from__isnull=True,
+            owner__demo_account__isnull=not is_demo_user(self.request.user),
+        ).order_by('-created_at')
 
 
 class TagListView(ListAPIView):
@@ -196,37 +211,24 @@ def save_recipe_copy(request, recipe_id):
     otherwise it'd show up twice, once for each owner.
     """
     original = get_object_or_404(Recipe, id=recipe_id)
+    if not same_demo_partition(request.user, original.owner):
+        # 404, not 403 — a demo account (or real user) probing recipe IDs
+        # across the wall shouldn't even learn that the ID exists.
+        return Response(status=404)
 
-    copy = Recipe.objects.create(
-        owner=request.user,
-        title=original.title,
-        image=original.image,
-        video=original.video,
-        source_url=original.source_url,
-        steps=original.steps,
-        recipe_type=original.recipe_type,
-        is_meal_preppable=original.is_meal_preppable,
-        saved_from=original,
-    )
-
-    for ingredient in original.ingredients.all():
-        Ingredient.objects.create(
-            recipe=copy,
-            name=ingredient.name,
-            amount=ingredient.amount,
-            unit=ingredient.unit,
-            notes=ingredient.notes,
-        )
-
-    copy.tags.set(original.tags.all())
-
+    copy = copy_recipe_for_user(original, request.user)
     return Response(RecipeSerializer(copy).data, status=201)
 
 
 class RecipeDetailView(RetrieveAPIView):
-    queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        # Recipe IDs are sequential and guessable — without this, a demo
+        # account could fetch a real family recipe's full detail directly
+        # by ID even though it never appears in their Browse list.
+        return Recipe.objects.filter(owner__demo_account__isnull=not is_demo_user(self.request.user))
 
 
 @api_view(['PATCH'])
@@ -402,7 +404,13 @@ def _merge_or_create_item(shopping_list, name, amount, unit):
             existing.save()
             return existing
 
-    category = get_shopping_item_category(name)
+    # Categorization is a background nicety, not the action the user asked
+    # for — once a demo account hits its cap, degrade to 'other' silently
+    # rather than blocking the add.
+    if check_and_increment_demo_limit(shopping_list.owner, 'categorization_count', DEMO_CATEGORIZATION_LIMIT):
+        category = get_shopping_item_category(name)
+    else:
+        category = 'other'
     return ShoppingListItem.objects.create(
         shopping_list=shopping_list, name=name, category=category, amount=amount, unit=unit,
     )

@@ -5,6 +5,7 @@ import PageHeader from '../components/PageHeader';
 import CustomSelect from '../components/CustomSelect';
 import OptionsModal from '../components/OptionsModal';
 import ErrorText from '../components/ErrorText';
+import DemoTip from '../components/DemoTip';
 import { unitConversion, pluralizeUnit } from '../utils/UnitConversion';
 import {
   fetchShoppingLists,
@@ -193,6 +194,11 @@ function ShoppingList() {
 
   return (
     <div className="m-1 pb-20">
+      <DemoTip>
+        Add ingredients here or from the shopping list icon when viewing a recipe. 
+        AI automatically sorts each item into set categories.
+      </DemoTip>
+
       <PageHeader title="Shopping List" backTo="/" />
 
       <ErrorText>{error}</ErrorText>
@@ -277,9 +283,8 @@ function ShoppingList() {
                       layout
                       exit={{ opacity: 0 }}
                       transition={{ duration: 0.3 }}
-                      className={`flex items-center gap-2 text-body-1 cursor-pointer transition-opacity duration-300 ${
-                        crossedOff ? 'text-dark-green opacity-60 line-through' : 'text-dark-green'
-                      }`}
+                      className={`flex items-center gap-2 text-body-1 cursor-pointer transition-opacity duration-300 ${crossedOff ? 'text-dark-green opacity-60 line-through' : 'text-dark-green'
+                        }`}
                     >
                       <input
                         type="checkbox"

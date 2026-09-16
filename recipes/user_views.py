@@ -9,7 +9,12 @@ from rest_framework.response import Response
 
 
 def _serialize_user(user):
-    return {'id': user.id, 'username': user.username, 'is_superuser': user.is_superuser}
+    return {
+        'id': user.id,
+        'username': user.username,
+        'is_superuser': user.is_superuser,
+        'is_demo': hasattr(user, 'demo_account'),
+    }
 
 
 def _forbidden():

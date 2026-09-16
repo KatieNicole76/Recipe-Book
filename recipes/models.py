@@ -123,3 +123,26 @@ class IngredientCategory(models.Model):
 
     def __str__(self):
         return f"{self.name} -> {self.category}"
+
+
+class DemoAccount(models.Model):
+    """
+    Marks a User as part of the public demo, walled off from real family
+    data. Two kinds of demo user:
+    - is_template=True: a small number of permanent, curated accounts
+      (set up by hand via the mark_demo_template management command) whose
+      recipes populate every fresh demo session's Browse/family view.
+    - is_template=False: an ephemeral guest account auto-created per demo
+      visitor (see recipes/demo.py) and cleaned up after a day.
+    extraction/categorization counts cap how many Claude API calls a single
+    demo account can trigger, since those cost real money.
+    """
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='demo_account')
+    is_template = models.BooleanField(default=False)
+    extraction_count = models.PositiveIntegerField(default=0)
+    categorization_count = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        kind = 'template' if self.is_template else 'guest'
+        return f"{self.user.username} ({kind})"
