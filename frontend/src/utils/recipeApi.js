@@ -84,6 +84,7 @@ export async function saveRecipe(data, { imageFile = null, recipeId = null } = {
     formData.append('ingredients', JSON.stringify(data.ingredients || []));
     formData.append('tag_names', JSON.stringify(tagNames));
     formData.append('image_file', imageFile);
+    if (data.source_url) formData.append('source_url', data.source_url);
 
     response = await apiFetch(url, { method, body: formData });
   } else {
@@ -130,6 +131,24 @@ export async function linkRecipeSource(id, url) {
   if (!response.ok) {
     const errData = await response.json().catch(() => ({}));
     throw new Error(errData.error || 'Could not link that source');
+  }
+  return response.json();
+}
+
+/**
+ * Metadata-only lookup for a TikTok link before a recipe exists yet (e.g.
+ * linking a source while reviewing a fresh extraction, before the first
+ * save). Returns { source_url, thumbnail_url } — no video download.
+ */
+export async function fetchTiktokPreview(url) {
+  const response = await apiFetch('/api/recipes/tiktok-preview/', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || 'Could not fetch that TikTok video');
   }
   return response.json();
 }

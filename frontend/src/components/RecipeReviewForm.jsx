@@ -6,7 +6,7 @@ import PhotoPicker from './PhotoPicker';
 import ErrorText from './ErrorText';
 import { apiFetch } from '../api';
 import { parseAmountInput, roundAmount, unitConversion } from '../utils/UnitConversion';
-import { prepareRecipeForSave, saveRecipe, linkRecipeSource } from '../utils/recipeApi';
+import { prepareRecipeForSave, saveRecipe, linkRecipeSource, fetchTiktokPreview, isTiktokUrl } from '../utils/recipeApi';
 
 const RECIPE_TYPES = ['dinner', 'lunch', 'breakfast', 'dessert', 'side', 'snack', 'other'];
 const UNITS = ['tsp', 'tbsp', 'cup', 'fl_oz', 'g', 'oz', 'pinch', 'piece', 'can', 'package', 'whole', ''];
@@ -28,8 +28,10 @@ const makeIngredientKey = () =>
  *   just came from an extraction, or from an existing saved recipe you're editing.
  * - imageFile: optional File to upload alongside the save (only relevant
  *   right after a photo extraction — omit when editing an existing recipe).
- * - recipeId: optional — pass this when editing an existing recipe so a
- *   future update endpoint can be wired in without changing this form again.
+ * - recipeId: optional — pass this when editing an existing recipe so saves
+ *   PATCH it and a linked source is attached immediately. When omitted (a
+ *   fresh extraction, not yet saved), linking a TikTok source only previews
+ *   its thumbnail — the actual link/video is attached at save time.
  * - onSaved(savedRecipe): called after a successful save.
  * - onDiscard(): optional — if provided, shows a "Discard" button that calls it.
  * - saveButtonLabel: optional override for the save button's default text.
@@ -178,9 +180,23 @@ function RecipeReviewForm({
     setSourceError(null);
     setLinkingSource(true);
     try {
-      const updated = await linkRecipeSource(recipeId, trimmed);
-      setResult((prev) => ({ ...prev, source_url: updated.source_url, image: updated.image }));
-      if (updated.image) setPhotoPreview(updated.image);
+      if (recipeId) {
+        // Editing an already-saved recipe — link it (and fetch the
+        // thumbnail/video, for TikTok) right away.
+        const updated = await linkRecipeSource(recipeId, trimmed);
+        setResult((prev) => ({ ...prev, source_url: updated.source_url, image: updated.image }));
+        if (updated.image) setPhotoPreview(updated.image);
+      } else if (isTiktokUrl(trimmed)) {
+        // Still reviewing before the first save (e.g. a photo extraction) —
+        // there's no recipe to attach to yet, so just preview the
+        // thumbnail now; the actual video download happens at save time.
+        const preview = await fetchTiktokPreview(trimmed);
+        setResult((prev) => ({ ...prev, source_url: preview.source_url }));
+        if (preview.thumbnail_url) setPhotoPreview(preview.thumbnail_url);
+        setPhotoFile(null); // the linked video's thumbnail replaces whatever photo was extracted/picked
+      } else {
+        setResult((prev) => ({ ...prev, source_url: trimmed }));
+      }
       setSourceUrlInput('');
       setShowSourceInput(false);
     } catch (err) {
@@ -204,62 +220,60 @@ function RecipeReviewForm({
         <PhotoPicker file={photoFile} hasExisting={!!photoPreview} onChange={handlePhotoChange} />
       </div>
 
-      {recipeId && (
-        <div className="mb-4">
-          <label className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">Source</label>
-          {result.source_url && !showSourceInput ? (
-            <div className="flex items-center gap-2 ml-1">
-              <a
-                href={result.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue hover:text-blue-dark text-body-2 truncate flex-1"
-              >
-                {result.source_url}
-              </a>
-              <button
-                type="button"
-                onClick={() => {
-                  setSourceUrlInput(result.source_url);
-                  setShowSourceInput(true);
-                }}
-                className="text-blue hover:text-blue-dark text-body-2 cursor-pointer shrink-0"
-              >
-                Change
-              </button>
-            </div>
-          ) : showSourceInput ? (
-            <div className="flex gap-1">
-              <input
-                type="text"
-                placeholder="https://..."
-                aria-label="Source URL"
-                value={sourceUrlInput}
-                onChange={(e) => setSourceUrlInput(e.target.value)}
-                autoFocus
-                className="flex-1 p-1 text-body-2 rounded-lg bg-white box-border placeholder:text-gray-400"
-              />
-              <button
-                type="button"
-                onClick={handleLinkSource}
-                disabled={linkingSource}
-                className="bg-blue hover:bg-blue-dark text-beige px-3 rounded-lg cursor-pointer text-body-2 disabled:opacity-50"
-              >
-                {linkingSource ? 'Saving...' : 'Save'}
-              </button>
-            </div>
-          ) : (
+      <div className="mb-4">
+        <label className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">Source</label>
+        {result.source_url && !showSourceInput ? (
+          <div className="flex items-center gap-2 ml-1">
+            <a
+              href={result.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue hover:text-blue-dark text-body-2 truncate flex-1"
+            >
+              {result.source_url}
+            </a>
             <button
               type="button"
-              onClick={() => setShowSourceInput(true)}
-              className="text-blue hover:text-blue-dark text-body-1 cursor-pointer ml-1"
+              onClick={() => {
+                setSourceUrlInput(result.source_url);
+                setShowSourceInput(true);
+              }}
+              className="text-blue hover:text-blue-dark text-body-2 cursor-pointer shrink-0"
             >
-              + Link a Source
+              Change
             </button>
-          )}
-          <ErrorText>{sourceError}</ErrorText>
-        </div>
-      )}
+          </div>
+        ) : showSourceInput ? (
+          <div className="flex gap-1">
+            <input
+              type="text"
+              placeholder="https://..."
+              aria-label="Source URL"
+              value={sourceUrlInput}
+              onChange={(e) => setSourceUrlInput(e.target.value)}
+              autoFocus
+              className="flex-1 p-1 text-body-2 rounded-lg bg-white box-border placeholder:text-gray-400"
+            />
+            <button
+              type="button"
+              onClick={handleLinkSource}
+              disabled={linkingSource}
+              className="bg-blue hover:bg-blue-dark text-beige px-3 rounded-lg cursor-pointer text-body-2 disabled:opacity-50"
+            >
+              {linkingSource ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setShowSourceInput(true)}
+            className="text-blue hover:text-blue-dark text-body-1 cursor-pointer ml-1"
+          >
+            + Link a Source
+          </button>
+        )}
+        <ErrorText>{sourceError}</ErrorText>
+      </div>
 
       <label htmlFor="recipe-title" className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">Title</label>
       <input

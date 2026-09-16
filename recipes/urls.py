@@ -20,4 +20,5 @@ urlpatterns = [
     path('<int:pk>/update/', views.update_recipe, name='update-recipe'),
     path('<int:pk>/delete/', views.delete_recipe, name='delete-recipe'),
     path('<int:pk>/link-source/', views.link_source, name='link-source'),
+    path('tiktok-preview/', views.tiktok_preview, name='tiktok-preview'),
 ]

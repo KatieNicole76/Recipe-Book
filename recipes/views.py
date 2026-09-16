@@ -21,7 +21,7 @@ from .services import (
     extract_recipe_from_tiktok,
     is_tiktok_url,
     fetch_tiktok_info,
-    download_tiktok_video,
+    apply_tiktok_media,
     get_shopping_item_category,
 )
 from .unit_conversion import convert_amount
@@ -90,6 +90,7 @@ def save_recipe(request):
             'steps': request.data.get('steps', ''),
             'ingredients': json.loads(request.data.get('ingredients', '[]')),
             'tag_names': json.loads(request.data.get('tag_names', '[]')),
+            'source_url': request.data.get('source_url', ''),
         }
         image_url = None
     else:
@@ -104,27 +105,28 @@ def save_recipe(request):
 
     recipe = serializer.save(owner=request.user)
 
-    if uploaded_image:
+    # A linked TikTok's thumbnail/video wins as the recipe's photo — even
+    # over an uploaded/extracted photo — since linking one is the user
+    # saying "use this video's thumbnail instead". If the fetch fails
+    # (network issue, dead link), fall back to whatever photo was already
+    # provided rather than leaving the recipe with no photo at all.
+    if recipe.source_url and is_tiktok_url(recipe.source_url):
+        apply_tiktok_media(recipe, recipe.source_url)
+
+    if not recipe.image and uploaded_image:
         recipe.image = uploaded_image
-        recipe.save()
-    elif image_url:
+    elif not recipe.image and image_url:
         try:
             img_response = requests.get(image_url, timeout=10)
             img_response.raise_for_status()
             filename = image_url.split('/')[-1].split('?')[0] or 'recipe.jpg'
             if '.' not in filename:
                 filename += '.jpg'
-            recipe.image.save(filename, ContentFile(img_response.content), save=True)
+            recipe.image.save(filename, ContentFile(img_response.content), save=False)
         except requests.RequestException:
             pass
 
-    if recipe.source_url and is_tiktok_url(recipe.source_url):
-        try:
-            video_bytes = download_tiktok_video(recipe.source_url)
-            recipe.video.save('tiktok.mp4', ContentFile(video_bytes), save=True)
-        except Exception:
-            pass  # video is a nice-to-have — the rest of the recipe still saved fine
-
+    recipe.save()
     return Response(RecipeSerializer(recipe).data, status=201)
 
 
@@ -265,24 +267,34 @@ def link_source(request, pk):
     recipe.source_url = url
 
     if is_tiktok_url(url):
-        try:
-            info = fetch_tiktok_info(url)
-            thumbnail_url = info.get('thumbnail')
-            if thumbnail_url:
-                img_response = requests.get(thumbnail_url, timeout=10)
-                img_response.raise_for_status()
-                recipe.image.save('thumbnail.jpg', ContentFile(img_response.content), save=False)
-        except Exception:
-            pass  # thumbnail is a nice-to-have — still try the video, then save the link either way
-
-        try:
-            video_bytes = download_tiktok_video(url)
-            recipe.video.save('tiktok.mp4', ContentFile(video_bytes), save=False)
-        except Exception:
-            pass
+        apply_tiktok_media(recipe, url)
 
     recipe.save()
     return Response(RecipeSerializer(recipe).data, status=200)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def tiktok_preview(request):
+    """
+    Metadata-only lookup for a TikTok link before a recipe exists yet (e.g.
+    linking a source while reviewing a fresh photo extraction, before the
+    first save). Returns just the thumbnail and canonical URL so the review
+    form can preview it — the actual video download happens at save time.
+    """
+    url = (request.data.get('url') or '').strip()
+    if not url or not is_tiktok_url(url):
+        return Response({'error': 'Not a TikTok URL'}, status=400)
+
+    try:
+        info = fetch_tiktok_info(url)
+    except Exception:
+        return Response({'error': 'Could not fetch that TikTok video'}, status=502)
+
+    return Response({
+        'source_url': info.get('webpage_url') or url,
+        'thumbnail_url': info.get('thumbnail'),
+    })
 
 
 class ShoppingListListCreateView(ListAPIView):

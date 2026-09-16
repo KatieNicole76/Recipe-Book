@@ -7,6 +7,7 @@ import anthropic
 import yt_dlp
 from urllib.parse import urlparse
 from django.conf import settings
+from django.core.files.base import ContentFile
 from bs4 import BeautifulSoup
 
 from .models import IngredientCategory
@@ -256,6 +257,32 @@ def download_tiktok_video(url):
             video_path = ydl.prepare_filename(info)
             with open(video_path, 'rb') as f:
                 return f.read()
+
+
+def apply_tiktok_media(recipe, url):
+    """
+    Best-effort: fetches a TikTok video's thumbnail and full video and
+    attaches them as recipe.image / recipe.video, overwriting whatever
+    photo the recipe already had (uploaded, extracted, or otherwise) — a
+    linked TikTok is meant to become the recipe's photo. Failures on
+    either piece are swallowed, since a fetch failing shouldn't block the
+    rest of the recipe from saving. Caller is responsible for recipe.save().
+    """
+    try:
+        info = fetch_tiktok_info(url)
+        thumbnail_url = info.get('thumbnail')
+        if thumbnail_url:
+            img_response = requests.get(thumbnail_url, timeout=10)
+            img_response.raise_for_status()
+            recipe.image.save('thumbnail.jpg', ContentFile(img_response.content), save=False)
+    except Exception:
+        pass
+
+    try:
+        video_bytes = download_tiktok_video(url)
+        recipe.video.save('tiktok.mp4', ContentFile(video_bytes), save=False)
+    except Exception:
+        pass
 
 
 def extract_recipe_from_tiktok(url, existing_tags=None):
