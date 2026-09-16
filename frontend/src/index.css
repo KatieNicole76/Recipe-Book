@@ -8,9 +8,11 @@
   /* Colors */
   --color-beige: #EAE0CC;
   --color-pink: #C9ADA1;
-  --color-green: #A0A083;
-  --color-dark-green: #798478;
-  --color-blue: #4D6A6D;
+  --color-green: #7B7B62;
+  --color-dark-green: #5B635A;
+  --color-blue: #4C696C;
+  --color-blue-dark: #3E5557;
+  --color-danger: #991B1B;
   --color-gray: #AAAAAA
 }
 

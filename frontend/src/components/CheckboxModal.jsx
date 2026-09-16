@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useId } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
 
 /**
  * Generic checkbox-list modal. Centered overlay with a scrollable list of
@@ -29,6 +30,8 @@ function CheckboxModal({
 }) {
   const [showNewInput, setShowNewInput] = useState(false);
   const [newValue, setNewValue] = useState('');
+  const titleId = useId();
+  const panelRef = useModalA11y(open, onClose);
 
   if (!open) return null;
 
@@ -53,11 +56,16 @@ function CheckboxModal({
       onClick={onClose}
     >
       <div
-        className="bg-beige rounded-xl p-2 w-full max-w-[320px] max-h-[75vh] overflow-y-auto
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-beige rounded-xl p-2 w-full max-w-[320px] max-h-[75vh] overflow-y-auto outline-none
           [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-dark-green text-h3 mb-2">{title}</h2>
+        <h2 id={titleId} className="text-dark-green text-h3 mb-2">{title}</h2>
 
         {options.length === 0 ? (
           <p className="text-dark-green text-body-2 opacity-60 px-1 py-2">{emptyMessage}</p>
@@ -87,6 +95,7 @@ function CheckboxModal({
                 <input
                   type="text"
                   placeholder="New tag name"
+                  aria-label="New tag name"
                   value={newValue}
                   onChange={(e) => setNewValue(e.target.value)}
                   onKeyDown={handleNewKeyDown}
@@ -96,7 +105,7 @@ function CheckboxModal({
                 <button
                   type="button"
                   onClick={submitNew}
-                  className="bg-blue text-beige px-3 rounded-lg cursor-pointer text-body-2"
+                  className="bg-blue hover:bg-blue-dark text-beige px-3 rounded-lg cursor-pointer text-body-2"
                 >
                   Add
                 </button>
@@ -105,7 +114,7 @@ function CheckboxModal({
               <button
                 type="button"
                 onClick={() => setShowNewInput(true)}
-                className="text-blue text-body-2 cursor-pointer"
+                className="text-blue hover:text-blue-dark text-body-2 cursor-pointer"
               >
                 {addNewLabel}
               </button>
@@ -115,7 +124,7 @@ function CheckboxModal({
 
         <button
           onClick={onClose}
-          className="w-full bg-blue text-beige p-1 rounded-full mt-2 cursor-pointer"
+          className="w-full bg-blue hover:bg-blue-dark text-beige text-body-1 p-1 rounded-full mt-2 cursor-pointer"
         >
           Done
         </button>

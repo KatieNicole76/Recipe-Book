@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { apiFetch } from '../api';
+import ErrorText from './ErrorText';
 
 // onExtracted(data, imageFile) — imageFile is always null here, since a
 // URL-extracted recipe's photo (if any) comes from image_url, not an upload.
@@ -37,17 +38,19 @@ function UrlExtractForm({ onExtracted }) {
       <input
         type="text"
         placeholder="https://example.com/some-recipe"
+        aria-label="Recipe URL"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
-        className="w-full p-1 rounded-lg bg-white box-border text-body-1 mt-2"
+        className="w-full p-1 rounded-lg bg-white box-border text-body-1 placeholder:text-gray-400 mt-2"
       />
 
-      {error && <p className="text-red-600 text-body-2 mt-4 mb-2 text-center">{error}</p>}
+      <ErrorText>{error}</ErrorText>
 
       <button
         onClick={handleSubmit}
         disabled={!url.trim() || loading}
-        className="block mt-4 bg-blue text-beige text-body-1 px-2 py-1 mb-2 rounded-full
+        title={!url.trim() ? 'Enter a URL first' : undefined}
+        className="block mt-4 bg-blue hover:bg-blue-dark text-beige text-body-1 px-2 py-1 mb-2 rounded-full
           cursor-pointer disabled:opacity-50"
       >
         {loading ? 'Extracting...' : 'Extract Recipe'}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
 import PhotoExtractForm from '../components/PhotoExtractForm';
 import UrlExtractForm from '../components/UrlExtractForm';
 import RecipeReviewForm from '../components/RecipeReviewForm';
@@ -29,21 +29,7 @@ function AddRecipe() {
 
   return (
     <div className="m-1">
-      {/******* HEADER ******/}
-      <div className="flex items-center">
-        <Link
-          to="/"
-          aria-label="Back"
-          className="bg-blue rounded-full p-1 flex items-center justify-center
-           z-20 w-3.5 h-3.5"
-        >
-          <ChevronLeft size={12} className="text-beige" />
-        </Link>
-
-        <h1 className="text-dark-green text-h2 my-3 flex-1 text-center">Add a Recipe</h1>
-
-        <div className="w-3.5 h-3.5" />
-      </div>
+      <PageHeader title="Add a Recipe" backTo="/" />
 
       {!result && (
         <>

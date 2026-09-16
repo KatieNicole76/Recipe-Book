@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { ChevronLeft, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { apiFetch } from '../api';
+import PageHeader from '../components/PageHeader';
 import ConfirmModal from '../components/ConfirmModal';
 
 function EditTags() {
@@ -33,23 +33,7 @@ function EditTags() {
 
   return (
     <div className="m-1">
-      {/******* HEADER ******/}
-      <div className="flex items-center">
-        <Link
-          to="/"
-          aria-label="Back"
-          className="bg-blue rounded-full p-1 flex items-center justify-center
-           z-20 w-3.5 h-3.5"
-        >
-          <ChevronLeft size={12} className="text-beige" />
-        </Link>
-
-        <h1 className="text-dark-green text-h2 my-3 flex-1 text-center">Edit Recipe Tags</h1>
-
-        <div className="w-3.5 h-3.5" />
-      </div>
-
-      {error && <p className="text-red-600 text-body-2 text-center mb-2">{error}</p>}
+      <PageHeader title="Edit Recipe Tags" backTo="/" />
 
       {tags.length === 0 ? (
         <p className="text-dark-green text-body-1 text-center mt-8">No tags yet.</p>
@@ -67,7 +51,7 @@ function EditTags() {
                 type="button"
                 onClick={() => setTagToDelete(tag)}
                 aria-label={`Delete ${tag.name}`}
-                className="shrink-0 text-red-800 cursor-pointer px-2"
+                className="shrink-0 text-danger cursor-pointer px-2"
               >
                 <Trash2 size={20} />
               </button>
@@ -83,6 +67,7 @@ function EditTags() {
         message={`Are you sure you want to delete "${tagToDelete?.name}"?`}
         confirmLabel="Delete"
         onConfirm={handleDelete}
+        error={error}
       />
     </div>
   );

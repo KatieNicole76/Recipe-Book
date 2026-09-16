@@ -1,3 +1,6 @@
+import { useState, useId } from 'react';
+import { useModalA11y } from '../hooks/useModalA11y';
+
 /**
  * Generic action-list modal. Centered overlay with one full-width button
  * per option, plus a Cancel button.
@@ -9,7 +12,20 @@
  * - options: array of { label, onClick, destructive }
  */
 function OptionsModal({ open, onClose, title, options }) {
+  const [submitting, setSubmitting] = useState(false);
+  const titleId = useId();
+  const panelRef = useModalA11y(open, onClose);
+
   if (!open) return null;
+
+  const handleOptionClick = async (onClick) => {
+    setSubmitting(true);
+    try {
+      await onClick();
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div
@@ -17,18 +33,24 @@ function OptionsModal({ open, onClose, title, options }) {
       onClick={onClose}
     >
       <div
-        className="bg-beige rounded-xl p-2 w-full max-w-[320px]"
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-beige rounded-xl p-2 w-full max-w-[320px] outline-none"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="text-dark-green text-h3 mb-2">{title}</h2>
+        <h2 id={titleId} className="text-dark-green text-h3 mb-2">{title}</h2>
         <div className="flex flex-col gap-1">
           {options.map((opt) => (
             <button
               key={opt.label}
               type="button"
-              onClick={opt.onClick}
-              className={`w-full text-left px-2 py-1 rounded-lg text-body-1 cursor-pointer hover:bg-white/50 ${
-                opt.destructive ? 'text-red-600' : 'text-dark-green'
+              onClick={() => handleOptionClick(opt.onClick)}
+              disabled={submitting}
+              className={`w-full text-left px-2 py-1 rounded-lg text-body-1 cursor-pointer hover:bg-white/50 disabled:opacity-50 ${
+                opt.destructive ? 'text-danger' : 'text-dark-green'
               }`}
             >
               {opt.label}
@@ -37,7 +59,8 @@ function OptionsModal({ open, onClose, title, options }) {
         </div>
         <button
           onClick={onClose}
-          className="w-full bg-blue text-beige p-1 rounded-full mt-2 cursor-pointer"
+          disabled={submitting}
+          className="w-full bg-blue hover:bg-blue-dark text-beige text-body-1 p-1 rounded-full mt-2 cursor-pointer disabled:opacity-50"
         >
           Cancel
         </button>

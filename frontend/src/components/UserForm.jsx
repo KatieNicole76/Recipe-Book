@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from './ConfirmModal';
+import ErrorText from './ErrorText';
 import { createUser, updateUser, deleteUser } from '../utils/userApi';
 
 /**
@@ -19,6 +20,7 @@ function UserForm({ userId = null, initialData = null, onSaved, onDeleted }) {
   const [isAdmin, setIsAdmin] = useState(initialData?.is_superuser || false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [deleteError, setDeleteError] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isEditing = userId != null;
@@ -39,28 +41,35 @@ function UserForm({ userId = null, initialData = null, onSaved, onDeleted }) {
   };
 
   const handleDelete = async () => {
-    await deleteUser(userId);
-    onDeleted?.();
+    setDeleteError(null);
+    try {
+      await deleteUser(userId);
+      onDeleted?.();
+    } catch (err) {
+      setDeleteError(err.message);
+    }
   };
 
   return (
     <div className="pt-5">
-      <label className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">Username</label>
+      <label htmlFor="user-username" className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">Username</label>
       <input
+        id="user-username"
         type="text"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
-        className="w-full p-2 text-body-1 rounded-lg bg-white mb-4"
+        className="w-full p-2 text-body-1 rounded-lg bg-white box-border mb-4"
       />
 
-      <label className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">
+      <label htmlFor="user-password" className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">
         Password{isEditing ? ' (leave blank to keep current password)' : ''}
       </label>
       <input
+        id="user-password"
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
-        className="w-full p-2 text-body-1 rounded-lg bg-white mb-4"
+        className="w-full p-2 text-body-1 rounded-lg bg-white box-border mb-4"
       />
 
       <label className="flex items-center gap-1 mb-4 ml-0.5 text-body-1 text-dark-green">
@@ -73,12 +82,13 @@ function UserForm({ userId = null, initialData = null, onSaved, onDeleted }) {
         Admin
       </label>
 
-      {error && <p className="text-red-600 text-body-2 mt-4 mb-2 text-center">{error}</p>}
+      <ErrorText>{error}</ErrorText>
 
       <button
         onClick={handleSave}
         disabled={saving || !username.trim()}
-        className="w-full bg-blue text-body-1 text-beige py-1 rounded-full font-bold mt-5 cursor-pointer disabled:opacity-50"
+        title={!username.trim() ? 'Username is required' : undefined}
+        className="w-full bg-blue hover:bg-blue-dark text-body-1 text-beige py-1 rounded-full font-bold mt-5 cursor-pointer disabled:opacity-50"
       >
         {saving ? 'Saving...' : isEditing ? 'Save Changes' : 'Create User'}
       </button>
@@ -86,8 +96,8 @@ function UserForm({ userId = null, initialData = null, onSaved, onDeleted }) {
       {isEditing && !isOwnAccount && (
         <button
           onClick={() => setShowDeleteConfirm(true)}
-          className="w-full text-red-800 text-body-1 py-1 mb-3
-          rounded-full font-bold mt-2 cursor-pointer border border-red-800"
+          className="w-full text-danger text-body-1 py-1 mb-3
+          rounded-full font-bold mt-2 cursor-pointer border border-danger"
         >
           Delete User
         </button>
@@ -100,6 +110,7 @@ function UserForm({ userId = null, initialData = null, onSaved, onDeleted }) {
         message={`Are you sure you want to delete "${initialData?.username}"?`}
         confirmLabel="Delete"
         onConfirm={handleDelete}
+        error={deleteError}
       />
     </div>
   );

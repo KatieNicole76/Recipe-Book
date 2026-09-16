@@ -5,12 +5,17 @@ import { Link, useNavigate } from 'react-router-dom';
 import Pill from '../components/Pill';
 import CheckboxModal from '../components/CheckboxModal';
 import OptionsModal from '../components/OptionsModal';
+import HoverIcon from '../components/HoverIcon';
 import Book from '../assets/book.png';
+import BookDarker from '../assets/book-darker.png';
 import Shopping from '../assets/shopping.png';
+import ShoppingDarker from '../assets/shopping-darker.png';
 import Plus from '../assets/plus.png';
+import PlusDarker from '../assets/plus-darker.png';
 import SearchIcon from '../assets/search.png';
 import Filter from '../assets/filter.png';
 import AccountIcon from '../assets/account.svg';
+import AccountIconDarker from '../assets/account-darker.svg';
 
 const RECIPE_TYPES = ['dinner', 'lunch', 'breakfast', 'dessert', 'side', 'snack', 'other'];
 const TYPE_LABELS = {
@@ -78,9 +83,9 @@ function RecipeList() {
           type="button"
           onClick={() => setShowAccountModal(true)}
           aria-label="Account"
-          className="w-[32px] h-[32px] mt-3 mr-1 shrink-0"
+          className="group w-[32px] h-[32px] mt-3 mr-1 shrink-0 cursor-pointer"
         >
-          <img src={AccountIcon} alt="" className="w-full h-full" />
+          <HoverIcon src={AccountIcon} hoverSrc={AccountIconDarker} imgClassName="w-full h-full" />
         </button>
       </div>
 
@@ -101,14 +106,14 @@ function RecipeList() {
       />
 
       <div className="flex flex-row gap-3 mt-5 mb-3 ml-1">
-        <Link to="/browse" aria-label="Recipe Book">
-          <img src={Book} alt="" className="max-h-[40px]" />
+        <Link to="/browse" aria-label="Recipe Book" className="group">
+          <HoverIcon src={Book} hoverSrc={BookDarker} imgClassName="max-h-[40px]" />
         </Link>
-        <Link to="/shopping-list" aria-label="Shopping List">
-          <img src={Shopping} alt="" className="max-h-[40px]" />
+        <Link to="/shopping-list" aria-label="Shopping List" className="group">
+          <HoverIcon src={Shopping} hoverSrc={ShoppingDarker} imgClassName="max-h-[40px]" />
         </Link>
-        <Link to="/add-recipe" aria-label="Add Recipe">
-          <img src={Plus} alt="" className="max-h-[40px]" />
+        <Link to="/add-recipe" aria-label="Add Recipe" className="group">
+          <HoverIcon src={Plus} hoverSrc={PlusDarker} imgClassName="max-h-[40px]" />
         </Link>
       </div>
 
@@ -116,6 +121,7 @@ function RecipeList() {
         <div className="relative inline-block mx-1 flex-1">
           <input
             type="text"
+            aria-label="Search recipes"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full h-4 px-2 pr-6 rounded-full text-body-2 bg-white border border-gray box-border"
@@ -126,7 +132,7 @@ function RecipeList() {
             className="max-h-[18px] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"
           />
         </div>
-        <button onClick={() => setShowTagPicker((s) => !s)} aria-label="Add tag filter">
+        <button onClick={() => setShowTagPicker((s) => !s)} aria-label="Add tag filter" className="cursor-pointer">
           <img src={Filter} alt="" className="max-h-[20px] cursor-pointer mr-2" />
         </button>
       </div>

@@ -1,7 +1,7 @@
 import * as Select from '@radix-ui/react-select';
 import { ChevronDown, Check } from 'lucide-react';
 
-function CustomSelect({ value, onChange, options, labelFor, placeholder = 'Select...', size = 'default', maxHeight = '256px' }) {
+function CustomSelect({ value, onChange, options, labelFor, placeholder = 'Select...', size = 'default', maxHeight = '256px', ariaLabel }) {
   const getLabel = (opt) => {
     if (labelFor) return labelFor(opt);
     if (typeof opt === 'object') return opt.label;
@@ -16,6 +16,7 @@ function CustomSelect({ value, onChange, options, labelFor, placeholder = 'Selec
   return (
     <Select.Root value={value} onValueChange={onChange}>
       <Select.Trigger
+        aria-label={ariaLabel}
         className={`w-full ${triggerPadding} rounded-lg bg-white flex items-center justify-between cursor-pointer ${triggerText}`}
       >
         <Select.Value placeholder={placeholder} />

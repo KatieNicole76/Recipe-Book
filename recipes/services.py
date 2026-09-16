@@ -1,7 +1,11 @@
 import base64
 import json
+import os
+import tempfile
 import requests
 import anthropic
+import yt_dlp
+from urllib.parse import urlparse
 from django.conf import settings
 from bs4 import BeautifulSoup
 
@@ -14,7 +18,7 @@ UNIT_OPTIONS = ['tsp', 'tbsp', 'cup', 'fl_oz', 'g', 'oz', 'pinch', 'piece', 'can
 RECIPE_TYPE_OPTIONS = ['dinner', 'lunch', 'breakfast', 'dessert', 'snack', 'side', 'other']
 SHOPPING_CATEGORY_OPTIONS = [
     'frozen', 'produce', 'dairy', 'meat_seafood', 'bakery',
-    'pantry', 'beverages', 'cleaning', 'housewares', 'toiletries', 'other',
+    'pantry', 'beverages', 'cleaning', 'housewares', 'health_personal', 'other',
 ]
 
 HEADERS = {
@@ -104,6 +108,17 @@ def _call_claude_and_parse(content):
     try:
         return json.loads(raw_text)
     except json.JSONDecodeError as e:
+        # The model occasionally wraps the JSON in an explanation despite
+        # being told not to (e.g. "There's no recipe here, but here's the
+        # JSON anyway: {...}") — when it does, it reliably restates a clean
+        # copy at the very end, so retry from the last '{' onward rather
+        # than failing outright.
+        last_brace = raw_text.rfind('{')
+        if last_brace != -1:
+            try:
+                return json.loads(raw_text[last_brace:].rstrip('`').strip())
+            except json.JSONDecodeError:
+                pass
         raise ValueError(f"Model did not return valid JSON: {e}\nRaw response: {raw_text}")
 
 
@@ -208,6 +223,65 @@ def extract_recipe_from_url(url, existing_tags=None):
     content = f"{prompt}\n\n{prompt_context}"
     result = _call_claude_and_parse(content)
     result['image_url'] = image_url  # attach separately, not part of the LLM's job
+
+    return _capitalize_tags(result)
+
+
+# ---------- tiktok ----------
+def is_tiktok_url(url):
+    return 'tiktok.com' in urlparse(url).netloc.lower()
+
+
+def fetch_tiktok_info(url):
+    """
+    Metadata only (caption, thumbnail URL, canonical webpage URL) — fast,
+    no video download. Used at extraction/preview time.
+    """
+    with yt_dlp.YoutubeDL({'quiet': True, 'skip_download': True, 'noplaylist': True}) as ydl:
+        return ydl.extract_info(url, download=False)
+
+
+def download_tiktok_video(url):
+    """
+    Full video download via yt-dlp, returns the raw bytes. Only called at
+    actual save time (not preview) — re-derives everything from the stable
+    page URL rather than trying to carry a short-lived CDN URL across
+    requests.
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        outtmpl = os.path.join(tmp_dir, 'video.%(ext)s')
+        ydl_opts = {'quiet': True, 'outtmpl': outtmpl, 'noplaylist': True, 'format': 'mp4/best'}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+            video_path = ydl.prepare_filename(info)
+            with open(video_path, 'rb') as f:
+                return f.read()
+
+
+def extract_recipe_from_tiktok(url, existing_tags=None):
+    """
+    Feeds the video's caption into the same extraction pipeline used for
+    photos/URLs. If the caption doesn't actually contain a recipe, this
+    just comes back mostly empty — the user types it up manually and the
+    video/thumbnail/source still get attached normally.
+    """
+    info = fetch_tiktok_info(url)
+    caption = info.get('description') or ''
+
+    prompt = build_extraction_prompt(existing_tags)
+    content = f"{prompt}\n\nHere is a TikTok video's caption:\n\n{caption}"
+    try:
+        result = _call_claude_and_parse(content)
+    except ValueError:
+        # A blank/near-empty/non-recipe caption occasionally makes the model
+        # break format entirely (explaining itself instead of returning
+        # JSON) rather than cleanly returning the empty-but-valid schema it
+        # usually does — either way this just means "no recipe here", not a
+        # real failure, so fall back to the same empty shape.
+        result = {'title': None, 'recipe_type': 'other', 'steps': '', 'ingredients': [], 'tags': []}
+
+    result['image_url'] = info.get('thumbnail')  # reuses the existing image-from-URL download path
+    result['source_url'] = info.get('webpage_url') or url
 
     return _capitalize_tags(result)
 

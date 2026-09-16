@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Recipe, Ingredient, Tag, ShoppingList, ShoppingListItem
+from .models import Recipe, Ingredient, Tag, ShoppingList, ShoppingListItem, get_or_create_tag
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -32,9 +32,10 @@ class RecipeSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recipe
         fields = [
-            'id', 'title', 'image', 'steps', 'recipe_type', 'is_meal_preppable',
+            'id', 'title', 'image', 'video', 'source_url', 'steps', 'recipe_type', 'is_meal_preppable',
             'ingredients', 'owner', 'tags', 'tag_names', 'created_at',
         ]
+        read_only_fields = ['video']
 
     def create(self, validated_data):
         ingredients_data = validated_data.pop('ingredients')
@@ -49,8 +50,7 @@ class RecipeSerializer(serializers.ModelSerializer):
             name = name.strip()
             if not name:
                 continue
-            tag, _ = Tag.objects.get_or_create(name=name)
-            recipe.tags.add(tag)
+            recipe.tags.add(get_or_create_tag(name))
 
         return recipe
 

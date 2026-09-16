@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import ErrorText from '../components/ErrorText';
 
 function LoginPage() {
   const [username, setUsername] = useState('');
@@ -39,7 +40,7 @@ function LoginPage() {
           type="text"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="w-full p-2 rounded-2xl mb-4 bg-white mt-1"
+          className="w-full p-2 text-body-1 rounded-lg bg-white box-border mb-4 mt-1"
           autoFocus
           id="username"
         />
@@ -49,16 +50,16 @@ function LoginPage() {
           type="password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-2 rounded-2xl mb-4 bg-white mt-1"
+          className="w-full p-2 text-body-1 rounded-lg bg-white box-border mb-4 mt-1"
           id="password"
         />
 
-        {error && <p className="text-red-600 text-sm mb-4">{error}. Call Katie if you need help.</p>}
+        <ErrorText>{error ? `${error}. Call Katie if you need help.` : null}</ErrorText>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-blue text-beige py-2 rounded-2xl font-bold my-3 cursor-pointer"
+          className="w-full bg-blue hover:bg-blue-dark text-beige text-body-1 py-2 rounded-full font-bold my-3 cursor-pointer"
         >
           {loading ? 'Logging in...' : 'Log In'}
         </button>

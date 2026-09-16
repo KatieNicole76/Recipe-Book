@@ -1,4 +1,5 @@
 import json
+import logging
 import requests
 from decimal import Decimal
 
@@ -12,10 +13,20 @@ from rest_framework.generics import ListAPIView, RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from .models import Recipe, Ingredient, Tag, ShoppingList, ShoppingListItem
+from .models import Recipe, Ingredient, Tag, ShoppingList, ShoppingListItem, get_or_create_tag
 from .serializers import RecipeSerializer, TagSerializer, ShoppingListSerializer, ShoppingListItemSerializer
-from .services import extract_recipe_from_image, extract_recipe_from_url, get_shopping_item_category
+from .services import (
+    extract_recipe_from_image,
+    extract_recipe_from_url,
+    extract_recipe_from_tiktok,
+    is_tiktok_url,
+    fetch_tiktok_info,
+    download_tiktok_video,
+    get_shopping_item_category,
+)
 from .unit_conversion import convert_amount
+
+logger = logging.getLogger(__name__)
 
 
 def _user_tag_names(user):
@@ -48,11 +59,18 @@ def extract_recipe_from_url_view(request):
         return Response({'error': 'No URL provided'}, status=400)
 
     try:
-        recipe_data = extract_recipe_from_url(url, existing_tags=_user_tag_names(request.user))
+        if is_tiktok_url(url):
+            recipe_data = extract_recipe_from_tiktok(url, existing_tags=_user_tag_names(request.user))
+        else:
+            recipe_data = extract_recipe_from_url(url, existing_tags=_user_tag_names(request.user))
     except requests.RequestException:
         return Response({'error': 'Could not fetch that URL'}, status=502)
     except ValueError as e:
-        return Response({'error': str(e)}, status=502)
+        logger.warning('Recipe extraction failed to parse a response: %s', e)
+        return Response({'error': 'Could not extract a recipe from that page'}, status=502)
+    except Exception as e:
+        logger.warning('TikTok extraction failed: %s', e)
+        return Response({'error': 'Could not fetch that TikTok video'}, status=502)
 
     return Response(recipe_data, status=200)
 
@@ -99,6 +117,13 @@ def save_recipe(request):
             recipe.image.save(filename, ContentFile(img_response.content), save=True)
         except requests.RequestException:
             pass
+
+    if recipe.source_url and is_tiktok_url(recipe.source_url):
+        try:
+            video_bytes = download_tiktok_video(recipe.source_url)
+            recipe.video.save('tiktok.mp4', ContentFile(video_bytes), save=True)
+        except Exception:
+            pass  # video is a nice-to-have — the rest of the recipe still saved fine
 
     return Response(RecipeSerializer(recipe).data, status=201)
 
@@ -205,8 +230,7 @@ def update_recipe(request, pk):
     for name in validated.get('tag_names', []):
         name = name.strip()
         if name:
-            tag, _ = Tag.objects.get_or_create(name=name)
-            recipe.tags.add(tag)
+            recipe.tags.add(get_or_create_tag(name))
 
     if uploaded_image:
         recipe.image = uploaded_image
@@ -221,6 +245,44 @@ def delete_recipe(request, pk):
     recipe = get_object_or_404(Recipe, pk=pk, owner=request.user)
     recipe.delete()
     return Response(status=204)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def link_source(request, pk):
+    """
+    Attaches a reference link to an existing recipe — for a recipe the user
+    already typed up (or extracted from a photo) and now wants to tie back
+    to where it came from. Unlike creation, this never re-extracts the
+    recipe's title/ingredients/steps — it only saves the link, and for a
+    TikTok link, also fetches the thumbnail and video.
+    """
+    recipe = get_object_or_404(Recipe, pk=pk, owner=request.user)
+    url = (request.data.get('url') or '').strip()
+    if not url:
+        return Response({'error': 'URL is required'}, status=400)
+
+    recipe.source_url = url
+
+    if is_tiktok_url(url):
+        try:
+            info = fetch_tiktok_info(url)
+            thumbnail_url = info.get('thumbnail')
+            if thumbnail_url:
+                img_response = requests.get(thumbnail_url, timeout=10)
+                img_response.raise_for_status()
+                recipe.image.save('thumbnail.jpg', ContentFile(img_response.content), save=False)
+        except Exception:
+            pass  # thumbnail is a nice-to-have — still try the video, then save the link either way
+
+        try:
+            video_bytes = download_tiktok_video(url)
+            recipe.video.save('tiktok.mp4', ContentFile(video_bytes), save=False)
+        except Exception:
+            pass
+
+    recipe.save()
+    return Response(RecipeSerializer(recipe).data, status=200)
 
 
 class ShoppingListListCreateView(ListAPIView):

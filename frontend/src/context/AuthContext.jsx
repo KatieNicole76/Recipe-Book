@@ -1,11 +1,12 @@
 import { createContext, useContext, useState } from 'react';
+import { getStorageItem, setStorageItem, removeStorageItem } from '../utils/safeStorage';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [accessToken, setAccessToken] = useState(localStorage.getItem('access_token'));
-  const [username, setUsername] = useState(localStorage.getItem('username'));
-  const [isSuperuser, setIsSuperuser] = useState(localStorage.getItem('is_superuser') === 'true');
+  const [accessToken, setAccessToken] = useState(getStorageItem('access_token'));
+  const [username, setUsername] = useState(getStorageItem('username'));
+  const [isSuperuser, setIsSuperuser] = useState(getStorageItem('is_superuser') === 'true');
 
   const login = async (user, password) => {
     const response = await fetch(`${import.meta.env.VITE_API_URL}/api/token/`, {
@@ -25,20 +26,20 @@ export function AuthProvider({ children }) {
     });
     const superuser = meResponse.ok ? (await meResponse.json()).is_superuser : false;
 
-    localStorage.setItem('access_token', data.access);
-    localStorage.setItem('refresh_token', data.refresh);
-    localStorage.setItem('username', user);
-    localStorage.setItem('is_superuser', String(superuser));
+    setStorageItem('access_token', data.access);
+    setStorageItem('refresh_token', data.refresh);
+    setStorageItem('username', user);
+    setStorageItem('is_superuser', String(superuser));
     setAccessToken(data.access);
     setUsername(user);
     setIsSuperuser(superuser);
   };
 
   const logout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('refresh_token');
-    localStorage.removeItem('username');
-    localStorage.removeItem('is_superuser');
+    removeStorageItem('access_token');
+    removeStorageItem('refresh_token');
+    removeStorageItem('username');
+    removeStorageItem('is_superuser');
     setAccessToken(null);
     setUsername(null);
     setIsSuperuser(false);

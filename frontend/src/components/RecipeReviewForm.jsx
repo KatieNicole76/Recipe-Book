@@ -2,12 +2,22 @@ import { useState, useEffect, useRef } from 'react';
 import CustomSelect from './CustomSelect';
 import Pill from './Pill';
 import CheckboxModal from './CheckboxModal';
+import PhotoPicker from './PhotoPicker';
+import ErrorText from './ErrorText';
 import { apiFetch } from '../api';
 import { parseAmountInput, roundAmount, unitConversion } from '../utils/UnitConversion';
-import { prepareRecipeForSave, saveRecipe } from '../utils/recipeApi';
+import { prepareRecipeForSave, saveRecipe, linkRecipeSource } from '../utils/recipeApi';
 
 const RECIPE_TYPES = ['dinner', 'lunch', 'breakfast', 'dessert', 'side', 'snack', 'other'];
 const UNITS = ['tsp', 'tbsp', 'cup', 'fl_oz', 'g', 'oz', 'pinch', 'piece', 'can', 'package', 'whole', ''];
+// Radix Select treats an empty-string item value as "unset" and falls back
+// to showing the placeholder — this sentinel stands in for the blank/"N/A"
+// unit so it displays and reselects correctly.
+const NA_UNIT = '__na__';
+const UNIT_OPTIONS = UNITS.map((u) => ({ value: u || NA_UNIT, label: u || 'N/A' }));
+
+const makeIngredientKey = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `ing-${Math.random()}`;
 
 /**
  * Generic recipe review/edit form.
@@ -39,6 +49,7 @@ function RecipeReviewForm({
     ...initialData,
     ingredients: (initialData.ingredients || []).map((ing) => ({
       ...ing,
+      _key: makeIngredientKey(),
       amount: ing.amount != null ? roundAmount(ing.amount) : null,
     })),
   }));
@@ -46,18 +57,32 @@ function RecipeReviewForm({
   const [showTagModal, setShowTagModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [showSourceInput, setShowSourceInput] = useState(false);
+  const [sourceUrlInput, setSourceUrlInput] = useState('');
+  const [linkingSource, setLinkingSource] = useState(false);
+  const [sourceError, setSourceError] = useState(null);
   const [photoFile, setPhotoFile] = useState(imageFile);
+  const initialObjectUrl = imageFile ? URL.createObjectURL(imageFile) : null;
   const [photoPreview, setPhotoPreview] = useState(
-    imageFile ? URL.createObjectURL(imageFile) : initialData.image_url || initialData.image || null
+    initialObjectUrl || initialData.image_url || initialData.image || null
   );
-  const photoInputRef = useRef(null);
+  // Tracks only the blob URLs *this component* created (never the server's
+  // own image/image_url strings), so we know exactly what's safe to revoke.
+  const objectUrlRef = useRef(initialObjectUrl);
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
+  const handlePhotoChange = (file) => {
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    const url = URL.createObjectURL(file);
+    objectUrlRef.current = url;
     setPhotoFile(file);
-    setPhotoPreview(URL.createObjectURL(file));
+    setPhotoPreview(url);
   };
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     apiFetch('/api/recipes/tags/')
@@ -88,7 +113,7 @@ function RecipeReviewForm({
   const addIngredient = () => {
     setResult((prev) => ({
       ...prev,
-      ingredients: [...prev.ingredients, { name: '', amount: null, unit: '', notes: '' }],
+      ingredients: [...prev.ingredients, { _key: makeIngredientKey(), name: '', amount: null, unit: '', notes: '' }],
     }));
   };
 
@@ -147,39 +172,102 @@ function RecipeReviewForm({
     }
   };
 
+  const handleLinkSource = async () => {
+    const trimmed = sourceUrlInput.trim();
+    if (!trimmed) return;
+    setSourceError(null);
+    setLinkingSource(true);
+    try {
+      const updated = await linkRecipeSource(recipeId, trimmed);
+      setResult((prev) => ({ ...prev, source_url: updated.source_url, image: updated.image }));
+      if (updated.image) setPhotoPreview(updated.image);
+      setSourceUrlInput('');
+      setShowSourceInput(false);
+    } catch (err) {
+      setSourceError(err.message);
+    } finally {
+      setLinkingSource(false);
+    }
+  };
+
   return (
     <div className="pt-5">
-      <input
-        ref={photoInputRef}
-        type="file"
-        accept="image/*"
-        onChange={handlePhotoChange}
-        className="hidden"
-      />
-
       {photoPreview && (
-        <img src={photoPreview} alt="Recipe" className="mx-auto max-w-[120px] rounded-lg block mb-2" />
+        <img
+          src={photoPreview}
+          alt={result.title ? `Photo of ${result.title}` : 'Recipe photo'}
+          className="mx-auto max-w-[120px] rounded-lg block mb-2"
+        />
       )}
 
-      <div className="flex flex-row gap-1 items-center justify-center mb-4">
-        <button
-          type="button"
-          onClick={() => photoInputRef.current.click()}
-          className="bg-blue text-beige px-2 py-0.5 rounded-xl cursor-pointer text-body-2"
-        >
-          Choose
-        </button>
-        <p className="text-dark-green text-body-2 opacity-70 truncate max-w-[200px]">
-          {photoFile ? photoFile.name : photoPreview ? 'Current photo' : 'No photo selected'}
-        </p>
+      <div className="flex justify-center mb-4">
+        <PhotoPicker file={photoFile} hasExisting={!!photoPreview} onChange={handlePhotoChange} />
       </div>
 
-      <label className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">Title</label>
+      {recipeId && (
+        <div className="mb-4">
+          <label className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">Source</label>
+          {result.source_url && !showSourceInput ? (
+            <div className="flex items-center gap-2 ml-1">
+              <a
+                href={result.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue hover:text-blue-dark text-body-2 truncate flex-1"
+              >
+                {result.source_url}
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setSourceUrlInput(result.source_url);
+                  setShowSourceInput(true);
+                }}
+                className="text-blue hover:text-blue-dark text-body-2 cursor-pointer shrink-0"
+              >
+                Change
+              </button>
+            </div>
+          ) : showSourceInput ? (
+            <div className="flex gap-1">
+              <input
+                type="text"
+                placeholder="https://..."
+                aria-label="Source URL"
+                value={sourceUrlInput}
+                onChange={(e) => setSourceUrlInput(e.target.value)}
+                autoFocus
+                className="flex-1 p-1 text-body-2 rounded-lg bg-white box-border placeholder:text-gray-400"
+              />
+              <button
+                type="button"
+                onClick={handleLinkSource}
+                disabled={linkingSource}
+                className="bg-blue hover:bg-blue-dark text-beige px-3 rounded-lg cursor-pointer text-body-2 disabled:opacity-50"
+              >
+                {linkingSource ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowSourceInput(true)}
+              className="text-blue hover:text-blue-dark text-body-1 cursor-pointer ml-1"
+            >
+              + Link a Source
+            </button>
+          )}
+          <ErrorText>{sourceError}</ErrorText>
+        </div>
+      )}
+
+      <label htmlFor="recipe-title" className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">Title</label>
       <input
+        id="recipe-title"
         type="text"
         value={result.title || ''}
         onChange={(e) => updateField('title', e.target.value)}
-        className="w-full p-2 text-body-1 rounded-lg bg-white mb-4"
+        className="w-full p-2 text-body-1 rounded-lg bg-white box-border mb-4"
       />
 
       <label className="block mb-0.5 ml-0.5 text-body-2 text-dark-green">Recipe Type</label>
@@ -189,6 +277,7 @@ function RecipeReviewForm({
           onChange={(val) => updateField('recipe_type', val)}
           options={RECIPE_TYPES}
           labelFor={(t) => t.charAt(0).toUpperCase() + t.slice(1)}
+          ariaLabel="Recipe Type"
         />
       </div>
 
@@ -212,8 +301,8 @@ function RecipeReviewForm({
         </div>
       )}
 
-      <button onClick={() => setShowTagModal(true)} 
-        className="text-blue text-body-1 cursor-pointer ml-1 mb-3">
+      <button onClick={() => setShowTagModal(true)}
+        className="text-blue hover:text-blue-dark text-body-1 cursor-pointer ml-1 mb-3">
         + Add Tag
       </button>
 
@@ -231,28 +320,29 @@ function RecipeReviewForm({
 
       <h3 className="text-dark-green text-h3 mb-2">Ingredients</h3>
       {result.ingredients?.map((ing, i) => (
-        <div key={i} className="pb-3">
+        <div key={ing._key} className="pb-3">
           <div className="flex gap-1 items-center mb-1 mt-2">
             <input
               type="text"
               placeholder="amt"
+              aria-label="Amount"
               defaultValue={unitConversion(ing.amount)}
               onBlur={(e) => updateIngredient(i, 'amount', parseAmountInput(e.target.value))}
               className="w-8 p-1 text-body-2 rounded-lg bg-white box-border placeholder:text-gray-400"
             />
             <div className="w-20">
               <CustomSelect
-                value={ing.unit || ''}
-                onChange={(val) => updateIngredient(i, 'unit', val)}
-                options={UNITS}
-                labelFor={(u) => u || 'N/A'}
+                value={ing.unit || NA_UNIT}
+                onChange={(val) => updateIngredient(i, 'unit', val === NA_UNIT ? '' : val)}
+                options={UNIT_OPTIONS}
                 size="compact"
                 maxHeight="232px"
+                ariaLabel="Unit"
               />
             </div>
             <button
               onClick={() => removeIngredient(i)}
-              className="ml-auto text-dark-green cursor-pointer px-2"
+              className="ml-auto text-dark-green text-body-1 cursor-pointer px-2"
               aria-label="Remove ingredient"
             >
               ✕
@@ -262,6 +352,7 @@ function RecipeReviewForm({
           <input
             type="text"
             placeholder="Ingredient name"
+            aria-label="Ingredient name"
             value={ing.name || ''}
             onChange={(e) => updateIngredient(i, 'name', e.target.value)}
             className="w-full p-1 text-body-2 rounded-lg bg-white box-border placeholder:text-gray-400 mb-1"
@@ -270,13 +361,14 @@ function RecipeReviewForm({
           <input
             type="text"
             placeholder="Notes (optional)"
+            aria-label="Notes"
             value={ing.notes || ''}
             onChange={(e) => updateIngredient(i, 'notes', e.target.value)}
             className="w-full p-1 text-body-2 rounded-lg bg-white box-border placeholder:text-gray-400"
           />
         </div>
       ))}
-      <button onClick={addIngredient} className="text-blue text-body-1 cursor-pointer">
+      <button onClick={addIngredient} className="text-blue hover:text-blue-dark text-body-1 cursor-pointer">
         + Add Ingredient
       </button>
 
@@ -285,15 +377,15 @@ function RecipeReviewForm({
         value={result.steps || ''}
         onChange={(e) => updateField('steps', e.target.value)}
         rows={8}
-        className="w-full p-2 rounded-lg bg-white box-border font-mono"
+        className="w-full p-2 text-body-1 rounded-lg bg-white box-border font-mono"
       />
 
-      {saveError && <p className="text-red-600 text-body-2 mt-4 mb-2 text-center">{saveError}</p>}
+      <ErrorText>{saveError}</ErrorText>
 
       <button
         onClick={handleSave}
         disabled={saving}
-        className="w-full bg-blue text-body-1 text-beige py-1 rounded-full font-bold mt-5 cursor-pointer disabled:opacity-50"
+        className="w-full bg-blue hover:bg-blue-dark text-body-1 text-beige py-1 rounded-full font-bold mt-5 cursor-pointer disabled:opacity-50"
       >
         {saving ? 'Saving...' : saveButtonLabel}
       </button>
@@ -301,7 +393,7 @@ function RecipeReviewForm({
       {onDiscard && (
         <button
           onClick={onDiscard}
-          className="w-full text-dark-green text-body-1 py-1 mb-3 
+          className="w-full text-dark-green text-body-1 py-1 mb-3
           rounded-full font-bold mt-2 cursor-pointer border border-dark-green"
         >
           {discardLabel}

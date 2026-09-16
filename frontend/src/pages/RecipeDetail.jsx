@@ -1,14 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, useDragControls } from 'framer-motion';
-import { ChevronLeft, ShoppingCart } from 'lucide-react';
+import { ChevronLeft, ShoppingCart, ExternalLink, Video } from 'lucide-react';
 import { apiFetch } from '../api';
 import { unitConversion } from '../utils/UnitConversion';
-import { deleteRecipe } from '../utils/recipeApi';
+import { deleteRecipe, isTiktokUrl } from '../utils/recipeApi';
 import AddToShoppingListModal from '../components/AddToShoppingListModal';
 import OptionsModal from '../components/OptionsModal';
 import ConfirmModal from '../components/ConfirmModal';
+import VideoPlayerModal from '../components/VideoPlayerModal';
+import HoverIcon from '../components/HoverIcon';
 import OptionsIcon from '../assets/options.svg';
+import OptionsIconDarker from '../assets/options-darker.svg';
 
 const PEEK_OFFSET = 250;
 const EXPANDED_OFFSET = 50;
@@ -20,22 +23,38 @@ function RecipeDetail() {
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
   const dragControls = useDragControls();
 
   const handleDelete = async () => {
-    await deleteRecipe(id);
-    navigate('/');
+    setDeleteError(null);
+    try {
+      await deleteRecipe(id);
+      navigate('/');
+    } catch (err) {
+      setDeleteError(err.message);
+    }
   };
+
   useEffect(() => {
+    let ignore = false;
     apiFetch(`/api/recipes/${id}/`)
       .then((res) => {
         if (!res.ok) throw new Error('Recipe not found');
         return res.json();
       })
-      .then(setRecipe)
-      .catch((err) => setError(err.message));
+      .then((data) => {
+        if (!ignore) setRecipe(data);
+      })
+      .catch((err) => {
+        if (!ignore) setError(err.message);
+      });
+    return () => {
+      ignore = true;
+    };
   }, [id]);
 
   if (error) {
@@ -68,9 +87,9 @@ function RecipeDetail() {
       <Link
         to="/"
         aria-label="Back"
-        className="absolute top-2 left-1 bg-blue rounded-full p-1 
+        className="absolute top-2 left-1 bg-blue hover:bg-blue-dark rounded-full p-1
           flex items-center justify-center z-20">
-        <ChevronLeft size={14} className="text-beige" />
+        <ChevronLeft size={12} className="text-beige" />
       </Link>
 
       <motion.div
@@ -95,7 +114,7 @@ function RecipeDetail() {
         }}
       >
 
-        <div className="pb-35">
+        <div className="pb-20">
           <div
             className="relative rounded-t-xl bg-green w-full pb-1 cursor-grab
               active:cursor-grabbing touch-none"
@@ -119,18 +138,41 @@ function RecipeDetail() {
                 onClick={() => setShowAddToList(true)}
                 onPointerDown={(e) => e.stopPropagation()}
                 aria-label="Add to shopping list"
-                className="w-[32px] h-[32px] bg-blue rounded-full flex items-center justify-center cursor-pointer"
+                className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer"
               >
                 <ShoppingCart size={16} className="text-beige" />
               </button>
+              {recipe.source_url && (
+                <a
+                  href={recipe.source_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onPointerDown={(e) => e.stopPropagation()}
+                  aria-label="View source"
+                  className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer"
+                >
+                  <ExternalLink size={16} className="text-beige" />
+                </a>
+              )}
+              {(recipe.video || (recipe.source_url && isTiktokUrl(recipe.source_url))) && (
+                <button
+                  type="button"
+                  onClick={() => setShowVideoModal(true)}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  aria-label="Play video"
+                  className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer"
+                >
+                  <Video size={16} className="text-beige" />
+                </button>
+              )}
               <button
                 type="button"
                 onClick={() => setShowOptionsModal(true)}
                 onPointerDown={(e) => e.stopPropagation()}
                 aria-label="Recipe options"
-                className="w-[32px] h-[32px] flex items-center justify-center cursor-pointer"
+                className="group w-[32px] h-[32px] flex items-center justify-center cursor-pointer"
               >
-                <img src={OptionsIcon} alt="" className="w-full h-full" />
+                <HoverIcon src={OptionsIcon} hoverSrc={OptionsIconDarker} imgClassName="w-full h-full" />
               </button>
             </div>
           </div>
@@ -174,6 +216,14 @@ function RecipeDetail() {
         />
       )}
 
+      {showVideoModal && (
+        <VideoPlayerModal
+          videoUrl={recipe.video}
+          sourceUrl={recipe.source_url}
+          onClose={() => setShowVideoModal(false)}
+        />
+      )}
+
       <OptionsModal
         open={showOptionsModal}
         onClose={() => setShowOptionsModal(false)}
@@ -198,6 +248,7 @@ function RecipeDetail() {
         message="Are you sure you want to delete this recipe?"
         confirmLabel="Delete"
         onConfirm={handleDelete}
+        error={deleteError}
       />
     </div>
   );

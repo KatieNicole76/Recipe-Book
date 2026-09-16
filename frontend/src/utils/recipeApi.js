@@ -41,7 +41,14 @@ export function formatSaveError(errData) {
  * the caller should show them and not attempt the save.
  */
 export function prepareRecipeForSave(data) {
-  const cleanedIngredients = (data.ingredients || []).filter((ing) => !isIngredientEmpty(ing));
+  const cleanedIngredients = (data.ingredients || [])
+    .filter((ing) => !isIngredientEmpty(ing))
+    .map((ing) => {
+      // _key is a client-only React list key, not part of the saved shape
+      const { _key, ...rest } = ing;
+      void _key;
+      return rest;
+    });
   const errors = validateIngredients(cleanedIngredients);
   const cleanedData = { ...data, ingredients: cleanedIngredients };
   return { cleanedData, errors };
@@ -83,7 +90,10 @@ export async function saveRecipe(data, { imageFile = null, recipeId = null } = {
     const payload = { ...data, tag_names: tagNames };
     delete payload.tags; // backend's read field is 'tags', write field is 'tag_names' — don't send both
     delete payload.image; // never send the existing image URL back as a write
-    delete payload.image_url; // no fetch-from-url support on update — only a fresh file upload changes the photo
+    delete payload.video; // video is server-managed (read-only) — never send it back as a write
+    if (isUpdate) {
+      delete payload.image_url; // no fetch-from-url support on update — only a fresh file upload changes the photo
+    }
 
     response = await apiFetch(url, {
       method,
@@ -103,4 +113,31 @@ export async function saveRecipe(data, { imageFile = null, recipeId = null } = {
 export async function deleteRecipe(id) {
   const response = await apiFetch(`/api/recipes/${id}/delete/`, { method: 'DELETE' });
   if (!response.ok) throw new Error('Could not delete recipe');
+}
+
+/**
+ * Attaches a reference link to an existing recipe. Doesn't touch the
+ * recipe's title/ingredients/steps — for a TikTok link, the backend also
+ * fetches the thumbnail and video (best-effort; failures don't block the
+ * link itself from being saved).
+ */
+export async function linkRecipeSource(id, url) {
+  const response = await apiFetch(`/api/recipes/${id}/link-source/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  });
+  if (!response.ok) {
+    const errData = await response.json().catch(() => ({}));
+    throw new Error(errData.error || 'Could not link that source');
+  }
+  return response.json();
+}
+
+export function isTiktokUrl(url) {
+  try {
+    return /(^|\.)tiktok\.com$/.test(new URL(url).hostname);
+  } catch {
+    return false;
+  }
 }

@@ -9,6 +9,18 @@ class Tag(models.Model):
         return self.name
 
 
+def get_or_create_tag(name):
+    """
+    Case-insensitive get-or-create: reuses an existing tag regardless of
+    case ("Chicken" reuses "chicken") instead of creating a near-duplicate,
+    keeping whichever casing was saved first.
+    """
+    existing = Tag.objects.filter(name__iexact=name).first()
+    if existing:
+        return existing
+    return Tag.objects.create(name=name)
+
+
 class Recipe(models.Model):
     RECIPE_TYPE_CHOICES = [
         ('dinner', 'Dinner'),
@@ -22,6 +34,8 @@ class Recipe(models.Model):
 
     title = models.CharField(max_length=200)
     image = models.ImageField(upload_to='recipe_photos/', null=True, blank=True)
+    video = models.FileField(upload_to='recipe_videos/', null=True, blank=True)
+    source_url = models.URLField(max_length=500, blank=True)
     steps = models.TextField(help_text="Numbered steps")
     recipe_type = models.CharField(max_length=20, choices=RECIPE_TYPE_CHOICES, default='dinner')
     is_meal_preppable = models.BooleanField(default=False)
@@ -80,6 +94,7 @@ class ShoppingListItem(models.Model):
         ('beverages', 'Beverages'),
         ('cleaning', 'Cleaning'),
         ('housewares', 'Housewares'),
+        ('health_personal', 'Health & Personal Care'),
         ('other', 'Other'),
     ]
 

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronDown, ChevronRight, Trash2, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, Trash2, Plus } from 'lucide-react';
+import PageHeader from '../components/PageHeader';
 import CustomSelect from '../components/CustomSelect';
 import OptionsModal from '../components/OptionsModal';
+import ErrorText from '../components/ErrorText';
 import { unitConversion } from '../utils/UnitConversion';
 import {
   fetchShoppingLists,
@@ -17,7 +18,7 @@ import {
 
 const CATEGORY_ORDER = [
   'frozen', 'produce', 'dairy', 'meat_seafood', 'bakery',
-  'pantry', 'beverages', 'cleaning', 'housewares', 'other',
+  'pantry', 'beverages', 'cleaning', 'housewares', 'health_personal', 'other',
 ];
 const CATEGORY_LABELS = {
   frozen: 'Frozen',
@@ -29,11 +30,10 @@ const CATEGORY_LABELS = {
   beverages: 'Beverages',
   cleaning: 'Cleaning',
   housewares: 'Housewares',
+  health_personal: 'Health & Personal Care',
   other: 'Other',
 };
 
-// How long a just-checked item stays crossed off in its own category
-// before it actually moves down into the "Checked off items" section.
 const CROSS_OFF_DELAY = 450;
 
 function ShoppingList() {
@@ -46,6 +46,8 @@ function ShoppingList() {
   const [checkedOpen, setCheckedOpen] = useState(false);
   const [itemInput, setItemInput] = useState('');
   const [pendingIds, setPendingIds] = useState(new Set());
+  const [error, setError] = useState(null);
+  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchShoppingLists()
@@ -65,35 +67,58 @@ function ShoppingList() {
 
   const handleCreateList = async () => {
     const trimmed = newListName.trim();
-    if (!trimmed) return;
-    const created = await createShoppingList(trimmed);
-    setLists((prev) => [...prev, created]);
-    setSelectedListId(created.id);
-    setNewListName('');
-    setShowNewListInput(false);
+    if (!trimmed || creating) return;
+    setError(null);
+    setCreating(true);
+    try {
+      const created = await createShoppingList(trimmed);
+      setLists((prev) => [...prev, created]);
+      setSelectedListId(created.id);
+      setNewListName('');
+      setShowNewListInput(false);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleDeleteList = async () => {
     if (!selectedList) return;
-    await deleteShoppingList(selectedList.id);
-    const remaining = lists.filter((l) => l.id !== selectedList.id);
-    setLists(remaining);
-    setSelectedListId(remaining.length > 0 ? remaining[0].id : null);
-    setShowDeleteModal(false);
+    setError(null);
+    try {
+      await deleteShoppingList(selectedList.id);
+      const remaining = lists.filter((l) => l.id !== selectedList.id);
+      setLists(remaining);
+      setSelectedListId(remaining.length > 0 ? remaining[0].id : null);
+      setShowDeleteModal(false);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const handleClearAll = async () => {
     if (!selectedList) return;
-    const updated = await clearAllItems(selectedList.id);
-    replaceList(updated);
-    setShowDeleteModal(false);
+    setError(null);
+    try {
+      const updated = await clearAllItems(selectedList.id);
+      replaceList(updated);
+      setShowDeleteModal(false);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const handleClearChecked = async () => {
     if (!selectedList) return;
-    const updated = await clearCheckedItems(selectedList.id);
-    replaceList(updated);
-    setShowDeleteModal(false);
+    setError(null);
+    try {
+      const updated = await clearCheckedItems(selectedList.id);
+      replaceList(updated);
+      setShowDeleteModal(false);
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const applyToggledItem = (updatedItem) => {
@@ -106,36 +131,50 @@ function ShoppingList() {
     );
   };
 
+  const clearPending = (itemId) => {
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(itemId);
+      return next;
+    });
+  };
+
   const handleToggleItem = (item) => {
+    setError(null);
+    //moving a already checked back to list
     if (item.is_checked) {
-      // unchecking: move back up immediately, no need for a cross-off delay
-      toggleShoppingItem(item.id, false).then(applyToggledItem);
+      toggleShoppingItem(item.id, false).then(applyToggledItem).catch((err) => setError(err.message));
       return;
     }
 
-    // checking: show it crossed off in place first, then move it down into
-    // the checked section once the animation has had time to play
+    //checking off an item (has a delay for animation)
     setPendingIds((prev) => new Set(prev).add(item.id));
     setTimeout(() => {
-      toggleShoppingItem(item.id, true).then((updatedItem) => {
-        applyToggledItem(updatedItem);
-        setPendingIds((prev) => {
-          const next = new Set(prev);
-          next.delete(item.id);
-          return next;
+      toggleShoppingItem(item.id, true)
+        .then((updatedItem) => {
+          applyToggledItem(updatedItem);
+          clearPending(item.id);
+        })
+        .catch((err) => {
+          setError(err.message);
+          clearPending(item.id);
         });
-      });
     }, CROSS_OFF_DELAY);
   };
 
   const handleAddItem = async () => {
     const trimmed = itemInput.trim();
     if (!trimmed || !selectedList) return;
-    setItemInput('');
-    const created = await addShoppingItem(selectedList.id, trimmed);
-    setLists((prev) =>
-      prev.map((l) => (l.id !== selectedListId ? l : { ...l, items: [...l.items, created] }))
-    );
+    setError(null);
+    try {
+      const created = await addShoppingItem(selectedList.id, trimmed);
+      setItemInput('');
+      setLists((prev) =>
+        prev.map((l) => (l.id !== selectedListId ? l : { ...l, items: [...l.items, created] }))
+      );
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const uncheckedByCategory = CATEGORY_ORDER.map((category) => ({
@@ -152,21 +191,9 @@ function ShoppingList() {
 
   return (
     <div className="m-1 pb-20">
-      {/******* HEADER ******/}
-      <div className="flex items-center">
-        <Link
-          to="/"
-          aria-label="Back"
-          className="bg-blue rounded-full p-1 flex items-center justify-center
-           z-20 w-3.5 h-3.5"
-        >
-          <ChevronLeft size={12} className="text-beige" />
-        </Link>
+      <PageHeader title="Shopping List" backTo="/" />
 
-        <h1 className="text-dark-green text-h2 my-3 flex-1 text-center">Shopping List</h1>
-
-        <div className="w-3.5 h-3.5" />
-      </div>
+      <ErrorText>{error}</ErrorText>
 
       {!loading && lists.length === 0 && !showNewListInput && (
         <div className="text-center mt-8">
@@ -174,7 +201,7 @@ function ShoppingList() {
           <button
             type="button"
             onClick={() => setShowNewListInput(true)}
-            className="bg-blue text-beige px-3 py-1 rounded-full cursor-pointer text-body-2"
+            className="bg-blue hover:bg-blue-dark text-beige px-3 py-1 rounded-full cursor-pointer text-body-2"
           >
             + New List
           </button>
@@ -189,13 +216,14 @@ function ShoppingList() {
               onChange={(val) => setSelectedListId(Number(val))}
               options={lists.map((l) => ({ value: String(l.id), label: l.name }))}
               size="compact"
+              ariaLabel="Shopping list"
             />
           </div>
           <button
             type="button"
             onClick={() => setShowNewListInput((s) => !s)}
             aria-label="Add list"
-            className="shrink-0 bg-blue text-beige rounded-full p-1 flex items-center justify-center cursor-pointer"
+            className="shrink-0 bg-blue hover:bg-blue-dark text-beige rounded-full p-1 flex items-center justify-center cursor-pointer"
           >
             <Plus size={18} />
           </button>
@@ -203,7 +231,7 @@ function ShoppingList() {
             type="button"
             onClick={() => setShowDeleteModal(true)}
             aria-label="List options"
-            className="shrink-0 text-blue cursor-pointer"
+            className="shrink-0 text-blue hover:text-blue-dark cursor-pointer"
           >
             <Trash2 size={20} />
           </button>
@@ -215,6 +243,7 @@ function ShoppingList() {
           <input
             type="text"
             placeholder="List name"
+            aria-label="List name"
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateList()}
@@ -224,9 +253,10 @@ function ShoppingList() {
           <button
             type="button"
             onClick={handleCreateList}
-            className="bg-blue text-beige px-3 rounded-lg cursor-pointer text-body-2"
+            disabled={creating}
+            className="bg-blue hover:bg-blue-dark text-beige px-3 rounded-lg cursor-pointer text-body-2 disabled:opacity-50"
           >
-            Create
+            {creating ? 'Creating...' : 'Create'}
           </button>
         </div>
       )}
@@ -320,6 +350,7 @@ function ShoppingList() {
           <input
             type="text"
             placeholder="Add an item"
+            aria-label="Add an item"
             value={itemInput}
             onChange={(e) => setItemInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAddItem()}
@@ -329,7 +360,7 @@ function ShoppingList() {
             type="button"
             onClick={handleAddItem}
             onMouseDown={(e) => e.preventDefault()}
-            className="bg-blue text-beige px-3 rounded-lg cursor-pointer text-body-2"
+            className="bg-blue hover:bg-blue-dark text-beige px-3 rounded-lg cursor-pointer text-body-2"
           >
             Add
           </button>
