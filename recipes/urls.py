@@ -8,6 +8,7 @@ urlpatterns = [
     path('tags/', views.TagListView.as_view(), name='tag-list'),
     path('tags/<int:pk>/', views.delete_tag, name='delete-tag'),
     path('', views.RecipeListView.as_view(), name='recipe-list'),
+    path('browse/', views.BrowseRecipeListView.as_view(), name='recipe-browse'),
     path('<int:recipe_id>/save-copy/', views.save_recipe_copy, name='save-recipe-copy'),
     path('shopping-lists/', views.ShoppingListListCreateView.as_view(), name='shopping-list-list-create'),
     path('shopping-lists/<int:pk>/', views.shopping_list_delete, name='shopping-list-delete'),

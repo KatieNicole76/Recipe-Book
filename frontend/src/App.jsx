@@ -6,6 +6,8 @@ import SuperuserRoute from './components/SuperuserRoute.jsx';
 import AddRecipe from './pages/AddRecipe.jsx';
 import RecipeDetail from './pages/RecipeDetail';
 import EditRecipe from './pages/EditRecipe.jsx';
+import Browse from './pages/Browse.jsx';
+import SaveRecipeCopy from './pages/SaveRecipeCopy.jsx';
 import ShoppingList from './pages/ShoppingList.jsx';
 import AddUser from './pages/AddUser.jsx';
 import UserList from './pages/UserList.jsx';
@@ -45,6 +47,22 @@ function App() {
         element={
           <ProtectedRoute>
             <EditRecipe />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/recipe/:id/save-edit"
+        element={
+          <ProtectedRoute>
+            <SaveRecipeCopy />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/browse"
+        element={
+          <ProtectedRoute>
+            <Browse />
           </ProtectedRoute>
         }
       />

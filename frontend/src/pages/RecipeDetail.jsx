@@ -1,24 +1,36 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion, useDragControls } from 'framer-motion';
-import { ChevronLeft, ShoppingCart, ExternalLink, Video } from 'lucide-react';
+import { ChevronLeft, ShoppingCart, ExternalLink, Video, Plus } from 'lucide-react';
 import { apiFetch } from '../api';
-import { unitConversion } from '../utils/UnitConversion';
-import { deleteRecipe, isTiktokUrl } from '../utils/recipeApi';
+import { useAuth } from '../context/AuthContext';
+import { unitConversion, pluralizeUnit } from '../utils/UnitConversion';
+import { deleteRecipe, saveRecipeCopy, isTiktokUrl } from '../utils/recipeApi';
 import AddToShoppingListModal from '../components/AddToShoppingListModal';
 import OptionsModal from '../components/OptionsModal';
 import ConfirmModal from '../components/ConfirmModal';
+import ErrorText from '../components/ErrorText';
 import VideoPlayerModal from '../components/VideoPlayerModal';
 import HoverIcon from '../components/HoverIcon';
 import OptionsIcon from '../assets/options.svg';
 import OptionsIconDarker from '../assets/options-darker.svg';
 
-const PEEK_OFFSET = 250;
+const PEEK_OFFSET = 150;
 const EXPANDED_OFFSET = 50;
 
+// Keys the actual component by :id so navigating from one recipe straight
+// to another (e.g. after saving a copy) fully remounts it — otherwise
+// React Router reuses the same instance and transient UI state (an open
+// modal, drag position, etc.) would leak across from the previous recipe.
 function RecipeDetail() {
   const { id } = useParams();
+  return <RecipeDetailPage key={id} />;
+}
+
+function RecipeDetailPage() {
+  const { id } = useParams();
   const navigate = useNavigate();
+  const { username } = useAuth();
   const [recipe, setRecipe] = useState(null);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
@@ -27,6 +39,8 @@ function RecipeDetail() {
   const [showOptionsModal, setShowOptionsModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveCopyError, setSaveCopyError] = useState(null);
   const dragControls = useDragControls();
 
   const handleDelete = async () => {
@@ -36,6 +50,16 @@ function RecipeDetail() {
       navigate('/');
     } catch (err) {
       setDeleteError(err.message);
+    }
+  };
+
+  const handleSaveAsIs = async () => {
+    setSaveCopyError(null);
+    try {
+      const saved = await saveRecipeCopy(id);
+      navigate(`/recipe/${saved.id}`);
+    } catch (err) {
+      setSaveCopyError(err.message);
     }
   };
 
@@ -75,6 +99,7 @@ function RecipeDetail() {
 
   const steps = (recipe.steps || '').split('\n').filter((s) => s.trim());
   const allTags = [recipe.recipe_type, ...(recipe.tags || [])];
+  const isOwner = recipe.owner === username;
 
   return (
     <div className="relative h-screen w-full overflow-hidden">
@@ -133,56 +158,90 @@ function RecipeDetail() {
               ))}
             </div>
             <div className="flex items-center justify-end gap-1 mr-2">
-              <button
-                type="button"
-                onClick={() => setShowAddToList(true)}
-                onPointerDown={(e) => e.stopPropagation()}
-                aria-label="Add to shopping list"
-                className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer"
-              >
-                <ShoppingCart size={16} className="text-beige" />
-              </button>
-              {recipe.source_url && (
-                <a
-                  href={recipe.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onPointerDown={(e) => e.stopPropagation()}
-                  aria-label="View source"
-                  className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer"
-                >
-                  <ExternalLink size={16} className="text-beige" />
-                </a>
+              {isOwner && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setShowAddToList(true)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    aria-label="Add to shopping list"
+                    className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer"
+                  >
+                    <ShoppingCart size={16} className="text-beige" />
+                  </button>
+                  {recipe.source_url && (
+                    <a
+                      href={recipe.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      aria-label="View source"
+                      className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer"
+                    >
+                      <ExternalLink size={16} className="text-beige" />
+                    </a>
+                  )}
+                  {(recipe.video || (recipe.source_url && isTiktokUrl(recipe.source_url))) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowVideoModal(true)}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      aria-label="Play video"
+                      className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer"
+                    >
+                      <Video size={16} className="text-beige" />
+                    </button>
+                  )}
+                </>
               )}
-              {(recipe.video || (recipe.source_url && isTiktokUrl(recipe.source_url))) && (
+              {isOwner ? (
                 <button
                   type="button"
-                  onClick={() => setShowVideoModal(true)}
+                  onClick={() => setShowOptionsModal(true)}
                   onPointerDown={(e) => e.stopPropagation()}
-                  aria-label="Play video"
-                  className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer"
+                  aria-label="Recipe options"
+                  className="group w-[32px] h-[32px] flex items-center justify-center cursor-pointer"
                 >
-                  <Video size={16} className="text-beige" />
+                  <HoverIcon src={OptionsIcon} hoverSrc={OptionsIconDarker} imgClassName="w-full h-full" />
                 </button>
+              ) : (
+                <>
+                  <span className="text-white font-mono font-normal tracking-widest text-[11px] opacity-80 truncate max-w-[200px] mr-auto ml-2">
+                    From {recipe.owner}'s Cook Book
+                  </span>
+                  {(recipe.video || (recipe.source_url && isTiktokUrl(recipe.source_url))) && (
+                    <button
+                      type="button"
+                      onClick={() => setShowVideoModal(true)}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      aria-label="Play video"
+                      className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer shrink-0"
+                    >
+                      <Video size={16} className="text-beige" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setShowSaveModal(true)}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    aria-label="Save to your cookbook"
+                    className="w-[32px] h-[32px] bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center cursor-pointer shrink-0"
+                  >
+                    <Plus size={16} className="text-beige" />
+                  </button>
+                </>
               )}
-              <button
-                type="button"
-                onClick={() => setShowOptionsModal(true)}
-                onPointerDown={(e) => e.stopPropagation()}
-                aria-label="Recipe options"
-                className="group w-[32px] h-[32px] flex items-center justify-center cursor-pointer"
-              >
-                <HoverIcon src={OptionsIcon} hoverSrc={OptionsIconDarker} imgClassName="w-full h-full" />
-              </button>
             </div>
           </div>
+
+          <ErrorText>{saveCopyError}</ErrorText>
 
           <h2 className="text-dark-green text-h4 mb-1 my-2 ml-1">Ingredients</h2>
           <ul className="ml-4 mb-5 flex flex-col gap-2 list-disc list-outside">
             {recipe.ingredients?.map((ing) => (
               <li key={ing.id} className="text-dark-green text-body-1">
                 <span className="font-bold text-[20px]">
-                  {unitConversion(ing.amount)} {ing.unit}
+                  {unitConversion(ing.amount)} {pluralizeUnit(ing.unit, ing.amount)}
                 </span><span> </span>
                 {ing.name}
                 {ing.notes ? ` (${ing.notes})` : ''}
@@ -238,6 +297,16 @@ function RecipeDetail() {
               setShowDeleteConfirm(true);
             },
           },
+        ]}
+      />
+
+      <OptionsModal
+        open={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        title="Save Recipe"
+        options={[
+          { label: 'Save to your cookbook', onClick: handleSaveAsIs },
+          { label: 'Edit first', onClick: () => navigate(`/recipe/${id}/save-edit`) },
         ]}
       />
 

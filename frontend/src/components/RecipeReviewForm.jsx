@@ -32,6 +32,10 @@ const makeIngredientKey = () =>
  *   PATCH it and a linked source is attached immediately. When omitted (a
  *   fresh extraction, not yet saved), linking a TikTok source only previews
  *   its thumbnail — the actual link/video is attached at save time.
+ * - savedFromId: optional — pass this (with recipeId omitted) when editing
+ *   a copy of someone else's recipe before saving it to your own cookbook
+ *   ("Edit first" from Browse). Marks the new recipe as a copy so it's
+ *   excluded from the combined Browse list.
  * - onSaved(savedRecipe): called after a successful save.
  * - onDiscard(): optional — if provided, shows a "Discard" button that calls it.
  * - saveButtonLabel: optional override for the save button's default text.
@@ -41,6 +45,7 @@ function RecipeReviewForm({
   initialData,
   imageFile = null,
   recipeId = null,
+  savedFromId = null,
   onSaved,
   onDiscard,
   saveButtonLabel = 'Save Recipe',
@@ -165,7 +170,7 @@ function RecipeReviewForm({
 
     setSaving(true);
     try {
-      const saved = await saveRecipe(cleanedData, { imageFile: photoFile, recipeId });
+      const saved = await saveRecipe(cleanedData, { imageFile: photoFile, recipeId, savedFromId });
       onSaved?.(saved);
     } catch (err) {
       setSaveError(err.message);

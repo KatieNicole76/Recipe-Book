@@ -80,6 +80,11 @@ def extract_recipe_from_url_view(request):
 def save_recipe(request):
     uploaded_image = request.FILES.get('image_file')
 
+    # Set when this save is "edit first" on a recipe saved from Browse — the
+    # new recipe is a fork of saved_from, not a from-scratch creation, so a
+    # photo/video the user didn't touch should still carry over from it.
+    saved_from = Recipe.objects.filter(pk=request.data.get('saved_from')).first()
+
     if uploaded_image:
         # multipart form data — rebuild a plain dict, parsing JSON-in-a-string
         # fields (ingredients, tag_names) back into real lists
@@ -105,6 +110,9 @@ def save_recipe(request):
 
     recipe = serializer.save(owner=request.user)
 
+    if saved_from:
+        recipe.saved_from = saved_from
+
     # A linked TikTok's thumbnail/video wins as the recipe's photo — even
     # over an uploaded/extracted photo — since linking one is the user
     # saying "use this video's thumbnail instead". If the fetch fails
@@ -125,15 +133,37 @@ def save_recipe(request):
             recipe.image.save(filename, ContentFile(img_response.content), save=False)
         except requests.RequestException:
             pass
+    elif not recipe.image and saved_from and saved_from.image:
+        # "Edit first" from Browse, photo left untouched — keep the original's.
+        recipe.image = saved_from.image
+
+    if not recipe.video and saved_from and saved_from.video:
+        recipe.video = saved_from.video
 
     recipe.save()
     return Response(RecipeSerializer(recipe).data, status=201)
 
 
 class RecipeListView(ListAPIView):
-    queryset = Recipe.objects.all().order_by('-created_at')
+    """The logged-in user's own cookbook — recipes they wrote or saved."""
     serializer_class = RecipeSerializer
     permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Recipe.objects.filter(owner=self.request.user).order_by('-created_at')
+
+
+class BrowseRecipeListView(ListAPIView):
+    """
+    The combined family cookbook — every original recipe anyone has added.
+    Excludes saved copies (saved_from is set) so a recipe someone else
+    already saved into their own cookbook doesn't show up a second time.
+    """
+    serializer_class = RecipeSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Recipe.objects.filter(saved_from__isnull=True).order_by('-created_at')
 
 
 class TagListView(ListAPIView):
@@ -159,12 +189,20 @@ def delete_tag(request, pk):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def save_recipe_copy(request, recipe_id):
+    """
+    Saves another user's recipe into the current user's own cookbook
+    verbatim (the "Save to your cookbook" option from Browse). saved_from
+    marks it as a copy so it's excluded from the combined Browse list —
+    otherwise it'd show up twice, once for each owner.
+    """
     original = get_object_or_404(Recipe, id=recipe_id)
 
     copy = Recipe.objects.create(
         owner=request.user,
         title=original.title,
         image=original.image,
+        video=original.video,
+        source_url=original.source_url,
         steps=original.steps,
         recipe_type=original.recipe_type,
         is_meal_preppable=original.is_meal_preppable,

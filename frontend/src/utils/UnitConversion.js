@@ -22,6 +22,25 @@ export function roundAmount(amount) {
   return Math.round(parseFloat(amount) * 100) / 100;
 }
 
+// Units that are countable nouns and read badly unpluralized ("8 piece").
+// Abbreviations (tsp, tbsp, fl_oz, g, oz) and "whole" (an adjective, not a
+// noun — "2 whole chickens" pluralizes the food, not the unit) are left
+// alone, matching normal recipe-writing convention.
+const PLURAL_UNITS = {
+  cup: 'cups',
+  pinch: 'pinches',
+  piece: 'pieces',
+  can: 'cans',
+  package: 'packages',
+};
+
+export function pluralizeUnit(unit, amount) {
+  if (!unit) return unit;
+  const plural = PLURAL_UNITS[unit];
+  if (!plural) return unit;
+  return amount != null && parseFloat(amount) > 1 ? plural : unit;
+}
+
 export function unitConversion(amount) {
   if (amount === null || amount === undefined) return '';
 

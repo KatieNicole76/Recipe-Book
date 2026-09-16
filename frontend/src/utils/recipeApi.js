@@ -67,8 +67,12 @@ export function prepareRecipeForSave(data) {
  *
  * recipeId, if provided, PATCHes that existing recipe instead of creating
  * a new one via POST.
+ *
+ * savedFromId, if provided (and recipeId is not), marks the new recipe as
+ * a copy of that recipe — used by the "Edit first" save-from-Browse flow,
+ * so it's excluded from the combined Browse list like any other saved copy.
  */
-export async function saveRecipe(data, { imageFile = null, recipeId = null } = {}) {
+export async function saveRecipe(data, { imageFile = null, recipeId = null, savedFromId = null } = {}) {
   const tagNames = data.tags || [];
   const isUpdate = recipeId != null;
   const url = isUpdate ? `/api/recipes/${recipeId}/update/` : '/api/recipes/save/';
@@ -85,6 +89,7 @@ export async function saveRecipe(data, { imageFile = null, recipeId = null } = {
     formData.append('tag_names', JSON.stringify(tagNames));
     formData.append('image_file', imageFile);
     if (data.source_url) formData.append('source_url', data.source_url);
+    if (savedFromId) formData.append('saved_from', savedFromId);
 
     response = await apiFetch(url, { method, body: formData });
   } else {
@@ -95,6 +100,7 @@ export async function saveRecipe(data, { imageFile = null, recipeId = null } = {
     if (isUpdate) {
       delete payload.image_url; // no fetch-from-url support on update — only a fresh file upload changes the photo
     }
+    if (savedFromId) payload.saved_from = savedFromId;
 
     response = await apiFetch(url, {
       method,
@@ -114,6 +120,16 @@ export async function saveRecipe(data, { imageFile = null, recipeId = null } = {
 export async function deleteRecipe(id) {
   const response = await apiFetch(`/api/recipes/${id}/delete/`, { method: 'DELETE' });
   if (!response.ok) throw new Error('Could not delete recipe');
+}
+
+/**
+ * Saves another user's recipe into your own cookbook verbatim (Browse's
+ * "Save to your cookbook" option) — no edits, straight copy.
+ */
+export async function saveRecipeCopy(id) {
+  const response = await apiFetch(`/api/recipes/${id}/save-copy/`, { method: 'POST' });
+  if (!response.ok) throw new Error('Could not save that recipe');
+  return response.json();
 }
 
 /**

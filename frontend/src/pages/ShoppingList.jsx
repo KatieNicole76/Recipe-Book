@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader';
 import CustomSelect from '../components/CustomSelect';
 import OptionsModal from '../components/OptionsModal';
 import ErrorText from '../components/ErrorText';
-import { unitConversion } from '../utils/UnitConversion';
+import { unitConversion, pluralizeUnit } from '../utils/UnitConversion';
 import {
   fetchShoppingLists,
   createShoppingList,
@@ -187,7 +187,9 @@ function ShoppingList() {
     .sort((a, b) => new Date(b.checked_at) - new Date(a.checked_at));
 
   const itemLabel = (item) =>
-    item.amount != null ? `${unitConversion(item.amount)} ${item.unit} ${item.name}`.replace(/\s+/g, ' ').trim() : item.name;
+    item.amount != null
+      ? `${unitConversion(item.amount)} ${pluralizeUnit(item.unit, item.amount)} ${item.name}`.replace(/\s+/g, ' ').trim()
+      : item.name;
 
   return (
     <div className="m-1 pb-20">

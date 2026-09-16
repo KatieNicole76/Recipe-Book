@@ -1,6 +1,6 @@
 import { useState, useEffect, useId } from 'react';
 import CustomSelect from './CustomSelect';
-import { unitConversion } from '../utils/UnitConversion';
+import { unitConversion, pluralizeUnit } from '../utils/UnitConversion';
 import { fetchShoppingLists, addIngredientsToList } from '../utils/shoppingListApi';
 import { useModalA11y } from '../hooks/useModalA11y';
 
@@ -102,7 +102,7 @@ function AddToShoppingListModal({ onClose, ingredients }) {
                 onChange={() => toggleIngredient(ing.id)}
                 className="w-2 h-2 accent-blue cursor-pointer mt-0.5"
               />
-              {unitConversion(ing.amount)} {ing.unit} {ing.name}
+              {unitConversion(ing.amount)} {pluralizeUnit(ing.unit, ing.amount)} {ing.name}
             </label>
           ))}
         </div>
