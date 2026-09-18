@@ -166,9 +166,10 @@ class RecipeListView(ListAPIView):
 
 class BrowseRecipeListView(ListAPIView):
     """
-    The combined family cookbook — every original recipe anyone on the same
-    side of the demo/real wall has added. Excludes saved copies (saved_from
-    is set) so a recipe someone else already saved into their own cookbook
+    The combined family cookbook — every original recipe anyone else on the
+    same side of the demo/real wall has added (not your own — you already
+    see those on your own home page). Excludes saved copies (saved_from is
+    set) so a recipe someone else already saved into their own cookbook
     doesn't show up a second time. Demo accounts only ever see other demo
     accounts' recipes here, never real family recipes, and vice versa.
     """
@@ -179,7 +180,7 @@ class BrowseRecipeListView(ListAPIView):
         return Recipe.objects.filter(
             saved_from__isnull=True,
             owner__demo_account__isnull=not is_demo_user(self.request.user),
-        ).order_by('-created_at')
+        ).exclude(owner=self.request.user).order_by('-created_at')
 
 
 class TagListView(ListAPIView):
