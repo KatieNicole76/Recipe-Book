@@ -24,6 +24,7 @@ from .services import (
     apply_tiktok_media,
     copy_recipe_for_user,
     get_shopping_item_category,
+    HEADERS,
 )
 from .demo import is_demo_user, same_demo_partition, check_and_increment_demo_limit, DEMO_EXTRACTION_LIMIT, DEMO_CATEGORIZATION_LIMIT
 from .unit_conversion import convert_amount
@@ -135,14 +136,14 @@ def save_recipe(request):
         recipe.image = uploaded_image
     elif not recipe.image and image_url:
         try:
-            img_response = requests.get(image_url, timeout=10)
+            img_response = requests.get(image_url, headers=HEADERS, timeout=10)
             img_response.raise_for_status()
             filename = image_url.split('/')[-1].split('?')[0] or 'recipe.jpg'
             if '.' not in filename:
                 filename += '.jpg'
             recipe.image.save(filename, ContentFile(img_response.content), save=False)
-        except requests.RequestException:
-            pass
+        except requests.RequestException as e:
+            logger.warning('Could not download recipe image from %s: %s', image_url, e)
     elif not recipe.image and saved_from and saved_from.image:
         # "Edit first" from Browse, photo left untouched — keep the original's.
         recipe.image = saved_from.image

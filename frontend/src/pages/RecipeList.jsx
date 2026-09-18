@@ -6,6 +6,7 @@ import OptionsModal from '../components/OptionsModal';
 import HoverIcon from '../components/HoverIcon';
 import RecipeGrid from '../components/RecipeGrid';
 import DemoTip from '../components/DemoTip';
+import InstallPrompt from '../components/InstallPrompt';
 import Book from '../assets/book.png';
 import BookDarker from '../assets/book-darker.png';
 import Shopping from '../assets/shopping.png';
@@ -35,8 +36,10 @@ function RecipeList() {
 
   return (
     <div>
+      <InstallPrompt />
+
       <DemoTip>
-        Demo Mode: This account and its data are temporary. 
+        Demo Mode: This account and its data are temporary.
       </DemoTip>
 
       <div className="flex flex-row justify-between items-start">

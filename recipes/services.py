@@ -1,17 +1,19 @@
 import base64
 import json
+import logging
 import os
 import tempfile
 import requests
 import anthropic
 import yt_dlp
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from django.conf import settings
 from django.core.files.base import ContentFile
 from bs4 import BeautifulSoup
 
 from .models import IngredientCategory, Recipe, Ingredient
 
+logger = logging.getLogger(__name__)
 
 client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
@@ -46,11 +48,7 @@ def build_extraction_prompt(existing_tags=None):
         )
     else:
         tag_guidance = (
-            "This user has no existing tags yet, so choose sensible, common. " \
-            "Do not make tags for specific ingredients EXCLUDING meats. (For example, " \
-                "do not make a tag for carrots, but make one for chicken.) " \
-            "Do not make tags for meal types (e.g. \"dinner\", \"lunch\", \"breakfast\"). " \
-            "Do not make tags for dietary restrictions (e.g. \"gluten-free\", \"vegan\"). " \
+            "This user has no existing tags yet, so choose sensible, common. " 
         )
 
     return f"""You are extracting a recipe. Return ONLY valid JSON, no other text, no markdown code fences.
@@ -80,7 +78,11 @@ Rules:
 - For unit, pick the closest match from the allowed list. If none fit, attempt to convert to one that will. If you cannot, use "".
 - Preserve the original step wording as closely as possible rather than paraphrasing.
 - {tag_guidance}
-- Keep tags short (1-3 words each), capitalized, and genuinely useful for filtering, don't pad the list just to reach 5.
+- Keep tags short (1-3 words each), capitalized, and genuinely useful for filtering, don't pad the list just to reach 5." 
+    "Do not make tags for specific ingredients EXCLUDING meats. (For example, Do not make a tag for carrots,
+        but make one for chicken.) " 
+    "Do not make tags for meal types (e.g. \"dinner\", \"lunch\", \"breakfast\"). " 
+    "Do not make tags for dietary restrictions (e.g. \"gluten-free\", \"vegan\"). " 
 """
 
 
@@ -215,6 +217,13 @@ def extract_recipe_from_url(url, existing_tags=None):
 
     if recipe_json_ld:
         image_url = extract_image_url(recipe_json_ld)
+        if image_url:
+            # Some sites emit protocol-relative ("//cdn.../img.jpg") or
+            # site-relative ("/img.jpg") image URLs in their structured
+            # data — a browser resolves these fine (which is why the photo
+            # shows up in the preview), but requests.get() rejects them
+            # outright server-side, silently failing the save-time download.
+            image_url = urljoin(url, image_url)
         prompt_context = f"Here is structured recipe data from the page:\n\n{json.dumps(recipe_json_ld)}"
     else:
         page_text = fetch_page_text(url)[:15000]
@@ -304,17 +313,17 @@ def apply_tiktok_media(recipe, url):
         info = fetch_tiktok_info(url)
         thumbnail_url = info.get('thumbnail')
         if thumbnail_url:
-            img_response = requests.get(thumbnail_url, timeout=10)
+            img_response = requests.get(thumbnail_url, headers=HEADERS, timeout=10)
             img_response.raise_for_status()
             recipe.image.save('thumbnail.jpg', ContentFile(img_response.content), save=False)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning('Could not fetch TikTok thumbnail for %s: %s', url, e)
 
     try:
         video_bytes = download_tiktok_video(url)
         recipe.video.save('tiktok.mp4', ContentFile(video_bytes), save=False)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning('Could not download TikTok video for %s: %s', url, e)
 
 
 def extract_recipe_from_tiktok(url, existing_tags=None):
