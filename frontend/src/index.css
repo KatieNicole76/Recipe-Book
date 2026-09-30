@@ -22,6 +22,15 @@ html, body, #root {
     background-color: #EAE0CC;
 }
 
+/* This is a mobile-first layout — on a wide desktop window it would
+   otherwise stretch full-bleed (giant recipe photos, edge-to-edge text).
+   Capping and centering the whole app gives it a sane, phone-app-width
+   column instead, without touching any individual page. */
+#root {
+    max-width: 640px;
+    margin-inline: auto;
+}
+
 @utility text-h1 {
   font-family: var(--font-mono);
   font-weight: 600;

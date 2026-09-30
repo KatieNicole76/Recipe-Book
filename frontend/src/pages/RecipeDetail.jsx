@@ -96,7 +96,7 @@ function RecipeDetailPage() {
   const ownerLabel = recipe.owner?.startsWith('demo_') ? 'Demo User' : recipe.owner;
 
   return (
-    <div className="relative h-screen w-full overflow-hidden">
+    <div className="relative h-screen w-full overflow-hidden border-x border-gray">
       <img
         src={recipe.image || 'https://placehold.co/600x800?text=No+Image'}
         alt={recipe.title}
@@ -111,7 +111,7 @@ function RecipeDetailPage() {
         <ChevronLeft size={12} className="text-beige" />
       </Link>
 
-      <div className="fixed top-0 inset-x-0 z-30">
+      <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[640px] z-30">
         {!isOwner && <DemoTip>
           This is another user's recipe. Tap + to save it to your own cookbook, as-is or edited first.
         </DemoTip>}

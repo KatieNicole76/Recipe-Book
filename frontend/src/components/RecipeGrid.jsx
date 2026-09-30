@@ -94,11 +94,11 @@ function RecipeGrid({ recipes, emptyMessage = 'No recipes found.' }) {
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-2 p-1">
+      <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2 p-1">
         {filtered.map((recipe) => (
           <Link
             to={`/recipe/${recipe.id}`}
-            className="relative rounded-xl overflow-hidden aspect-square block"
+            className="relative rounded-xl overflow-hidden aspect-square max-w-[200px] w-full mx-auto block"
             key={recipe.id}
           >
             <img

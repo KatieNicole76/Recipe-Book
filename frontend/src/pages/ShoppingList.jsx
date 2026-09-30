@@ -357,7 +357,7 @@ function ShoppingList() {
       />
 
       {selectedList && (
-        <div className="fixed bottom-0 inset-x-0 bg-beige border-t border-gray p-2 flex gap-1">
+        <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[640px] bg-beige border-t border-gray p-2 flex gap-1">
           <input
             type="text"
             placeholder="Add an item"
