@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../context/AuthContext';
 import ConfirmModal from './ConfirmModal';
 import ErrorText from './ErrorText';
+import { queryKeys } from '../queryKeys';
 import { createUser, updateUser, deleteUser } from '../utils/userApi';
 
 /**
@@ -14,6 +16,7 @@ import { createUser, updateUser, deleteUser } from '../utils/userApi';
  * - onDeleted(): called after a successful delete
  */
 function UserForm({ userId = null, initialData = null, onSaved, onDeleted }) {
+  const queryClient = useQueryClient();
   const { username: ownUsername } = useAuth();
   const [username, setUsername] = useState(initialData?.username || '');
   const [password, setPassword] = useState('');
@@ -32,6 +35,8 @@ function UserForm({ userId = null, initialData = null, onSaved, onDeleted }) {
     try {
       const data = { username: username.trim(), password, is_superuser: isAdmin };
       const saved = isEditing ? await updateUser(userId, data) : await createUser(data);
+      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+      if (isEditing) queryClient.invalidateQueries({ queryKey: queryKeys.user(userId) });
       onSaved?.(saved);
     } catch (err) {
       setError(err.message);
@@ -44,6 +49,8 @@ function UserForm({ userId = null, initialData = null, onSaved, onDeleted }) {
     setDeleteError(null);
     try {
       await deleteUser(userId);
+      queryClient.invalidateQueries({ queryKey: queryKeys.users });
+      queryClient.removeQueries({ queryKey: queryKeys.user(userId) });
       onDeleted?.();
     } catch (err) {
       setDeleteError(err.message);

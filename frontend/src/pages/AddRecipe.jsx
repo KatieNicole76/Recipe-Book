@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
+import { queryKeys } from '../queryKeys';
 import PageHeader from '../components/PageHeader';
 import PhotoExtractForm from '../components/PhotoExtractForm';
 import UrlExtractForm from '../components/UrlExtractForm';
@@ -13,6 +15,7 @@ function AddRecipe() {
   const [extractedImageFile, setExtractedImageFile] = useState(null);
 
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleExtracted = (data, imageFile) => {
     setResult(data);
@@ -25,6 +28,9 @@ function AddRecipe() {
   };
 
   const handleSaved = () => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
+    queryClient.invalidateQueries({ queryKey: queryKeys.browseRecipes });
+    queryClient.invalidateQueries({ queryKey: queryKeys.tags });
     navigate('/');
   };
 

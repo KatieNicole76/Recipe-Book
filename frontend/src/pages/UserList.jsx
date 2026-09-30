@@ -1,25 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ErrorText from '../components/ErrorText';
+import { queryKeys } from '../queryKeys';
 import { fetchUsers } from '../utils/userApi';
 
 function UserList() {
   const navigate = useNavigate();
-  const [users, setUsers] = useState([]);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetchUsers()
-      .then(setUsers)
-      .catch((err) => setError(err.message));
-  }, []);
+  const { data: users = [], isError, error } = useQuery({
+    queryKey: queryKeys.users,
+    queryFn: fetchUsers,
+  });
 
   return (
     <div className="m-1">
       <PageHeader title="Select User" backTo="/" />
 
-      <ErrorText>{error}</ErrorText>
+      <ErrorText>{isError ? error.message : null}</ErrorText>
 
       <div className="flex flex-col gap-1 mt-3">
         {users.map((user) => (

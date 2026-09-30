@@ -1,27 +1,24 @@
-import { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useParams, useNavigate } from 'react-router-dom';
 import PageHeader from '../components/PageHeader';
 import ErrorText from '../components/ErrorText';
 import UserForm from '../components/UserForm';
+import { queryKeys } from '../queryKeys';
 import { fetchUser } from '../utils/userApi';
 
 function EditUser() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [user, setUser] = useState(null);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    fetchUser(id)
-      .then(setUser)
-      .catch((err) => setError(err.message));
-  }, [id]);
+  const { data: user, isError, error } = useQuery({
+    queryKey: queryKeys.user(id),
+    queryFn: () => fetchUser(id),
+  });
 
   return (
     <div className="m-1">
       <PageHeader title="Edit User" backTo="/admin/users" />
 
-      <ErrorText>{error}</ErrorText>
+      <ErrorText>{isError ? error.message : null}</ErrorText>
 
       {user && (
         <UserForm

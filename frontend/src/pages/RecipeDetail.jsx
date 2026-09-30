@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, useDragControls } from 'framer-motion';
 import { ChevronLeft, ShoppingCart, ExternalLink, Video, Plus } from 'lucide-react';
-import { apiFetch } from '../api';
+import { apiFetchJson } from '../api';
+import { queryKeys } from '../queryKeys';
 import { useAuth } from '../context/AuthContext';
 import { unitConversion, pluralizeUnit } from '../utils/UnitConversion';
 import { deleteRecipe, saveRecipeCopy, isTiktokUrl } from '../utils/recipeApi';
@@ -31,9 +33,8 @@ function RecipeDetail() {
 function RecipeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { username } = useAuth();
-  const [recipe, setRecipe] = useState(null);
-  const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(false);
   const [showAddToList, setShowAddToList] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -44,10 +45,18 @@ function RecipeDetailPage() {
   const [saveCopyError, setSaveCopyError] = useState(null);
   const dragControls = useDragControls();
 
+  const { data: recipe, isPending, isError } = useQuery({
+    queryKey: queryKeys.recipe(id),
+    queryFn: () => apiFetchJson(`/api/recipes/${id}/`),
+  });
+
   const handleDelete = async () => {
     setDeleteError(null);
     try {
       await deleteRecipe(id);
+      queryClient.removeQueries({ queryKey: queryKeys.recipe(id) });
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
+      queryClient.invalidateQueries({ queryKey: queryKeys.browseRecipes });
       navigate('/');
     } catch (err) {
       setDeleteError(err.message);
@@ -58,39 +67,22 @@ function RecipeDetailPage() {
     setSaveCopyError(null);
     try {
       const saved = await saveRecipeCopy(id);
+      queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
       navigate(`/recipe/${saved.id}`);
     } catch (err) {
       setSaveCopyError(err.message);
     }
   };
 
-  useEffect(() => {
-    let ignore = false;
-    apiFetch(`/api/recipes/${id}/`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Recipe not found');
-        return res.json();
-      })
-      .then((data) => {
-        if (!ignore) setRecipe(data);
-      })
-      .catch((err) => {
-        if (!ignore) setError(err.message);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [id]);
-
-  if (error) {
+  if (isError) {
     return (
       <div className="min-h-screen bg-beige flex items-center justify-center">
-        <p className="text-blue text-body-1">{error}</p>
+        <p className="text-blue text-body-1">Recipe not found</p>
       </div>
     );
   }
 
-  if (!recipe) {
+  if (isPending) {
     return (
       <div className="min-h-screen bg-beige flex items-center justify-center">
         <p className="text-blue text-body-1">Loading...</p>
@@ -121,8 +113,8 @@ function RecipeDetailPage() {
 
       <div className="fixed top-0 inset-x-0 z-30">
         {!isOwner && <DemoTip>
-          This is anoter users recipe. Tap + to save it to your own cookbook, as-is or edited first.`
-        </DemoTip> }
+          This is another user's recipe. Tap + to save it to your own cookbook, as-is or edited first.
+        </DemoTip>}
       </div>
 
       <motion.div

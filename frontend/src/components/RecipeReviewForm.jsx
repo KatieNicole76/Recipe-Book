@@ -1,10 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import CustomSelect from './CustomSelect';
 import Pill from './Pill';
 import CheckboxModal from './CheckboxModal';
 import PhotoPicker from './PhotoPicker';
 import ErrorText from './ErrorText';
-import { apiFetch } from '../api';
+import { apiFetchJson } from '../api';
+import { queryKeys } from '../queryKeys';
 import { parseAmountInput, roundAmount, unitConversion } from '../utils/UnitConversion';
 import { prepareRecipeForSave, saveRecipe, linkRecipeSource, fetchTiktokPreview, isTiktokUrl } from '../utils/recipeApi';
 
@@ -51,6 +53,7 @@ function RecipeReviewForm({
   saveButtonLabel = 'Save Recipe',
   discardLabel = 'Discard & Start Over',
 }) {
+  const queryClient = useQueryClient();
   const [result, setResult] = useState(() => ({
     tags: [],
     ...initialData,
@@ -60,7 +63,15 @@ function RecipeReviewForm({
       amount: ing.amount != null ? roundAmount(ing.amount) : null,
     })),
   }));
-  const [existingTags, setExistingTags] = useState([]);
+  // New tag names typed in this session that aren't saved to the server
+  // yet — unioned with the cached server list so they show up in the
+  // picker immediately without waiting on a save + refetch.
+  const [locallyAddedTags, setLocallyAddedTags] = useState([]);
+  const { data: serverTags = [] } = useQuery({
+    queryKey: queryKeys.tags,
+    queryFn: () => apiFetchJson('/api/recipes/tags/').then((data) => data.map((t) => t.name)),
+  });
+  const existingTags = [...new Set([...serverTags, ...locallyAddedTags])];
   const [showTagModal, setShowTagModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
@@ -89,13 +100,6 @@ function RecipeReviewForm({
     return () => {
       if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     };
-  }, []);
-
-  useEffect(() => {
-    apiFetch('/api/recipes/tags/')
-      .then((res) => res.json())
-      .then((data) => setExistingTags(Array.isArray(data) ? data.map((t) => t.name) : []))
-      .catch(() => setExistingTags([]));
   }, []);
 
   const updateField = (field, value) => {
@@ -134,7 +138,7 @@ function RecipeReviewForm({
       }
       return { ...prev, tags: [...current, trimmed] };
     });
-    setExistingTags((prev) =>
+    setLocallyAddedTags((prev) =>
       prev.some((t) => t.toLowerCase() === trimmed.toLowerCase()) ? prev : [...prev, trimmed]
     );
   };
@@ -191,6 +195,9 @@ function RecipeReviewForm({
         const updated = await linkRecipeSource(recipeId, trimmed);
         setResult((prev) => ({ ...prev, source_url: updated.source_url, image: updated.image }));
         if (updated.image) setPhotoPreview(updated.image);
+        queryClient.invalidateQueries({ queryKey: queryKeys.recipe(recipeId) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
+        queryClient.invalidateQueries({ queryKey: queryKeys.browseRecipes });
       } else if (isTiktokUrl(trimmed)) {
         // Still reviewing before the first save (e.g. a photo extraction) —
         // there's no recipe to attach to yet, so just preview the

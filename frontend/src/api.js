@@ -38,3 +38,16 @@ export async function apiFetch(path, options = {}) {
 
   return response;
 }
+
+/**
+ * Convenience wrapper for GET requests used as React Query queryFns —
+ * throws on a non-ok response (so it surfaces as a query error) and
+ * returns the parsed JSON body.
+ */
+export async function apiFetchJson(path) {
+  const response = await apiFetch(path);
+  if (!response.ok) {
+    throw new Error(`Request to ${path} failed (status ${response.status})`);
+  }
+  return response.json();
+}

@@ -1,18 +1,15 @@
-import { useState, useEffect } from 'react';
-import { apiFetch } from '../api';
+import { useQuery } from '@tanstack/react-query';
+import { apiFetchJson } from '../api';
+import { queryKeys } from '../queryKeys';
 import PageHeader from '../components/PageHeader';
 import RecipeGrid from '../components/RecipeGrid';
 import DemoTip from '../components/DemoTip';
 
 function Browse() {
-  const [recipes, setRecipes] = useState([]);
-
-  useEffect(() => {
-    apiFetch('/api/recipes/browse/')
-      .then((res) => res.json())
-      .then((data) => setRecipes(Array.isArray(data) ? data : []))
-      .catch(() => setRecipes([]));
-  }, []);
+  const { data: recipes = [] } = useQuery({
+    queryKey: queryKeys.browseRecipes,
+    queryFn: () => apiFetchJson('/api/recipes/browse/'),
+  });
 
   return (
     <div className="m-1">

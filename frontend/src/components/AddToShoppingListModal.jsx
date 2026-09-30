@@ -1,11 +1,17 @@
-import { useState, useEffect, useId } from 'react';
+import { useState, useId } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import CustomSelect from './CustomSelect';
+import { queryKeys } from '../queryKeys';
 import { unitConversion, pluralizeUnit } from '../utils/UnitConversion';
 import { fetchShoppingLists, addIngredientsToList } from '../utils/shoppingListApi';
 import { useModalA11y } from '../hooks/useModalA11y';
 
 function AddToShoppingListModal({ onClose, ingredients }) {
-  const [lists, setLists] = useState([]);
+  const queryClient = useQueryClient();
+  const { data: lists = [] } = useQuery({
+    queryKey: queryKeys.shoppingLists,
+    queryFn: fetchShoppingLists,
+  });
   const [selectedListId, setSelectedListId] = useState(null);
   const [checkedIds, setCheckedIds] = useState(() => new Set(ingredients.map((ing) => ing.id)));
   const [saving, setSaving] = useState(false);
@@ -13,14 +19,7 @@ function AddToShoppingListModal({ onClose, ingredients }) {
   const noListsId = useId();
   const panelRef = useModalA11y(true, onClose);
 
-  useEffect(() => {
-    fetchShoppingLists()
-      .then((data) => {
-        setLists(data);
-        setSelectedListId(data.length > 0 ? data[0].id : null);
-      })
-      .catch(() => setLists([]));
-  }, []);
+  const effectiveListId = selectedListId ?? lists[0]?.id ?? null;
 
   const toggleIngredient = (id) => {
     setCheckedIds((prev) => {
@@ -36,13 +35,16 @@ function AddToShoppingListModal({ onClose, ingredients }) {
 
   const handleAdd = async () => {
     const selected = ingredients.filter((ing) => checkedIds.has(ing.id));
-    if (!selectedListId || selected.length === 0) return;
+    if (!effectiveListId || selected.length === 0) return;
 
     setSaving(true);
     try {
-      await addIngredientsToList(
-        selectedListId,
+      const updated = await addIngredientsToList(
+        effectiveListId,
         selected.map((ing) => ({ name: ing.name, amount: ing.amount, unit: ing.unit }))
+      );
+      queryClient.setQueryData(queryKeys.shoppingLists, (prev = []) =>
+        prev.map((l) => (l.id === updated.id ? updated : l))
       );
       onClose();
     } finally {
@@ -114,7 +116,7 @@ function AddToShoppingListModal({ onClose, ingredients }) {
         ) : (
           <div className="mb-2">
             <CustomSelect
-              value={selectedListId != null ? String(selectedListId) : ''}
+              value={effectiveListId != null ? String(effectiveListId) : ''}
               onChange={(val) => setSelectedListId(Number(val))}
               options={lists.map((l) => ({ value: String(l.id), label: l.name }))}
               size="compact"

@@ -1,5 +1,7 @@
-import { useState, useEffect } from 'react';
-import { apiFetch } from '../api';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { apiFetchJson } from '../api';
+import { queryKeys } from '../queryKeys';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
 import OptionsModal from '../components/OptionsModal';
@@ -17,22 +19,19 @@ import AccountIcon from '../assets/account.svg';
 import AccountIconDarker from '../assets/account-darker.svg';
 
 function RecipeList() {
-  const [recipes, setRecipes] = useState([]);
   const [showAccountModal, setShowAccountModal] = useState(false);
   const { username, logout, isSuperuser, isDemo } = useAuth();
   const navigate = useNavigate();
+
+  const { data: recipes = [] } = useQuery({
+    queryKey: queryKeys.recipes,
+    queryFn: () => apiFetchJson('/api/recipes/'),
+  });
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
-
-  useEffect(() => {
-    apiFetch('/api/recipes/')
-      .then((res) => res.json())
-      .then((data) => setRecipes(Array.isArray(data) ? data : []))
-      .catch(() => setRecipes([]));
-  }, []);
 
   return (
     <div>

@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronRight, Trash2, Plus } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
@@ -6,6 +7,7 @@ import CustomSelect from '../components/CustomSelect';
 import OptionsModal from '../components/OptionsModal';
 import ErrorText from '../components/ErrorText';
 import DemoTip from '../components/DemoTip';
+import { queryKeys } from '../queryKeys';
 import { unitConversion, pluralizeUnit } from '../utils/UnitConversion';
 import {
   fetchShoppingLists,
@@ -38,8 +40,11 @@ const CATEGORY_LABELS = {
 const CROSS_OFF_DELAY = 450;
 
 function ShoppingList() {
-  const [lists, setLists] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { data: lists = [], isPending: loading } = useQuery({
+    queryKey: queryKeys.shoppingLists,
+    queryFn: fetchShoppingLists,
+  });
   const [selectedListId, setSelectedListId] = useState(null);
   const [showNewListInput, setShowNewListInput] = useState(false);
   const [newListName, setNewListName] = useState('');
@@ -50,17 +55,17 @@ function ShoppingList() {
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
 
-  useEffect(() => {
-    fetchShoppingLists()
-      .then((data) => {
-        setLists(data);
-        if (data.length > 0) setSelectedListId(data[0].id);
-      })
-      .catch(() => setLists([]))
-      .finally(() => setLoading(false));
-  }, []);
+  // Falls back to the first list whenever nothing's been explicitly
+  // selected yet (or the previous selection no longer exists), so there's
+  // no need for a mount-time effect to seed it once the cached/fetched
+  // data arrives.
+  const selectedList = lists.find((l) => l.id === selectedListId) || lists[0] || null;
 
-  const selectedList = lists.find((l) => l.id === selectedListId) || null;
+  const setLists = (updater) => {
+    queryClient.setQueryData(queryKeys.shoppingLists, (prev = []) =>
+      typeof updater === 'function' ? updater(prev) : updater
+    );
+  };
 
   const replaceList = (updated) => {
     setLists((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
@@ -89,9 +94,8 @@ function ShoppingList() {
     setError(null);
     try {
       await deleteShoppingList(selectedList.id);
-      const remaining = lists.filter((l) => l.id !== selectedList.id);
-      setLists(remaining);
-      setSelectedListId(remaining.length > 0 ? remaining[0].id : null);
+      setLists((prev) => prev.filter((l) => l.id !== selectedList.id));
+      setSelectedListId(null);
       setShowDeleteModal(false);
     } catch (err) {
       setError(err.message);
@@ -125,7 +129,7 @@ function ShoppingList() {
   const applyToggledItem = (updatedItem) => {
     setLists((prev) =>
       prev.map((l) =>
-        l.id !== selectedListId
+        l.id !== selectedList?.id
           ? l
           : { ...l, items: l.items.map((i) => (i.id === updatedItem.id ? updatedItem : i)) }
       )
@@ -171,7 +175,7 @@ function ShoppingList() {
       const created = await addShoppingItem(selectedList.id, trimmed);
       setItemInput('');
       setLists((prev) =>
-        prev.map((l) => (l.id !== selectedListId ? l : { ...l, items: [...l.items, created] }))
+        prev.map((l) => (l.id !== selectedList.id ? l : { ...l, items: [...l.items, created] }))
       );
     } catch (err) {
       setError(err.message);
@@ -220,7 +224,7 @@ function ShoppingList() {
         <div className="flex items-center gap-2 mb-3">
           <div className="flex-1">
             <CustomSelect
-              value={selectedListId != null ? String(selectedListId) : ''}
+              value={selectedList != null ? String(selectedList.id) : ''}
               onChange={(val) => setSelectedListId(Number(val))}
               options={lists.map((l) => ({ value: String(l.id), label: l.name }))}
               size="compact"

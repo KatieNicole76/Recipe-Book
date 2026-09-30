@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiFetch } from '../api';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { apiFetchJson } from '../api';
+import { queryKeys } from '../queryKeys';
 import PageHeader from '../components/PageHeader';
 import ErrorText from '../components/ErrorText';
 import RecipeReviewForm from '../components/RecipeReviewForm';
@@ -14,32 +15,24 @@ import RecipeReviewForm from '../components/RecipeReviewForm';
 function SaveRecipeCopy() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [recipe, setRecipe] = useState(null);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    let ignore = false;
-    apiFetch(`/api/recipes/${id}/`)
-      .then((res) => {
-        if (!res.ok) throw new Error('Recipe not found');
-        return res.json();
-      })
-      .then((data) => {
-        if (!ignore) setRecipe(data);
-      })
-      .catch((err) => {
-        if (!ignore) setError(err.message);
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [id]);
+  const { data: recipe, isError } = useQuery({
+    queryKey: queryKeys.recipe(id),
+    queryFn: () => apiFetchJson(`/api/recipes/${id}/`),
+  });
+
+  const handleSaved = (saved) => {
+    queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
+    queryClient.invalidateQueries({ queryKey: queryKeys.tags });
+    navigate(`/recipe/${saved.id}`);
+  };
 
   return (
     <div className="m-1">
       <PageHeader title="Edit Before Saving" backTo={`/recipe/${id}`} />
 
-      <ErrorText>{error}</ErrorText>
+      <ErrorText>{isError ? 'Recipe not found' : null}</ErrorText>
 
       {recipe && (
         <RecipeReviewForm
@@ -47,7 +40,7 @@ function SaveRecipeCopy() {
           savedFromId={id}
           saveButtonLabel="Save to Your Cookbook"
           discardLabel="Cancel"
-          onSaved={(saved) => navigate(`/recipe/${saved.id}`)}
+          onSaved={handleSaved}
           onDiscard={() => navigate(`/recipe/${id}`)}
         />
       )}

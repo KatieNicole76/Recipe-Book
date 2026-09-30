@@ -1,20 +1,19 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Trash2 } from 'lucide-react';
-import { apiFetch } from '../api';
+import { apiFetch, apiFetchJson } from '../api';
+import { queryKeys } from '../queryKeys';
 import PageHeader from '../components/PageHeader';
 import ConfirmModal from '../components/ConfirmModal';
 
 function EditTags() {
-  const [tags, setTags] = useState([]);
+  const queryClient = useQueryClient();
+  const { data: tags = [] } = useQuery({
+    queryKey: queryKeys.tags,
+    queryFn: () => apiFetchJson('/api/recipes/tags/'),
+  });
   const [error, setError] = useState(null);
   const [tagToDelete, setTagToDelete] = useState(null);
-
-  useEffect(() => {
-    apiFetch('/api/recipes/tags/')
-      .then((res) => res.json())
-      .then((data) => setTags(Array.isArray(data) ? data : []))
-      .catch(() => setTags([]));
-  }, []);
 
   const handleDelete = async () => {
     setError(null);
@@ -24,7 +23,7 @@ function EditTags() {
         setError(`Could not delete tag (status ${response.status})`);
         return;
       }
-      setTags((prev) => prev.filter((t) => t.id !== tagToDelete.id));
+      queryClient.invalidateQueries({ queryKey: queryKeys.tags });
       setTagToDelete(null);
     } catch {
       setError('Could not delete tag (network error)');
