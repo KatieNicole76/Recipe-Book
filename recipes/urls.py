@@ -1,7 +1,12 @@
 from django.urls import path
 from . import views
+from . import meal_plan
 
 urlpatterns = [
+    path('meal-plan/', meal_plan.meal_plan_list, name='meal-plan-list'),
+    path('meal-plan/add/', meal_plan.meal_plan_add, name='meal-plan-add'),
+    path('meal-plan/<int:pk>/update/', meal_plan.meal_plan_update, name='meal-plan-update'),
+    path('meal-plan/<int:pk>/delete/', meal_plan.meal_plan_delete, name='meal-plan-delete'),
     path('extract/', views.extract_recipe, name='extract-recipe'),
     path('extract-url/', views.extract_recipe_from_url_view, name='extract-recipe-url'),
     path('save/', views.save_recipe, name='save-recipe'),

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, useDragControls } from 'framer-motion';
 import { ChevronLeft, ShoppingCart, ExternalLink, Video, Plus } from 'lucide-react';
@@ -33,6 +33,7 @@ function RecipeDetail() {
 function RecipeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const { username } = useAuth();
   const [expanded, setExpanded] = useState(false);
@@ -49,6 +50,18 @@ function RecipeDetailPage() {
     queryKey: queryKeys.recipe(id),
     queryFn: () => apiFetchJson(`/api/recipes/${id}/`),
   });
+
+  // A recipe can now be reached from Home, Browse, or the meal plan — go
+  // back to wherever that actually was instead of always landing on Home.
+  // location.key is 'default' when there's no real in-app history to pop
+  // (e.g. a fresh page load straight to this URL).
+  const handleBack = () => {
+    if (location.key === 'default') {
+      navigate('/');
+    } else {
+      navigate(-1);
+    }
+  };
 
   const handleDelete = async () => {
     setDeleteError(null);
@@ -103,13 +116,14 @@ function RecipeDetailPage() {
         className="absolute inset-0 w-full h-[45vh] object-cover"
       />
 
-      <Link
-        to="/"
+      <button
+        type="button"
+        onClick={handleBack}
         aria-label="Back"
         className="absolute top-2 left-1 bg-blue hover:bg-blue-dark rounded-full p-1
-          flex items-center justify-center z-20">
+          flex items-center justify-center z-20 cursor-pointer">
         <ChevronLeft size={12} className="text-beige" />
-      </Link>
+      </button>
 
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[640px] z-30">
         {!isOwner && <DemoTip>
@@ -272,6 +286,7 @@ function RecipeDetailPage() {
         <AddToShoppingListModal
           onClose={() => setShowAddToList(false)}
           ingredients={recipe.ingredients || []}
+          recipeId={recipe.id}
         />
       )}
 

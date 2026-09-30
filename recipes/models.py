@@ -146,3 +146,21 @@ class DemoAccount(models.Model):
     def __str__(self):
         kind = 'template' if self.is_template else 'guest'
         return f"{self.user.username} ({kind})"
+
+
+class MealPlanEntry(models.Model):
+    """
+    A recipe placed on someone's meal plan. date=None means it's sitting in
+    the Unplanned section — dragging it onto a day sets date to that day's
+    actual calendar date.
+    """
+    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='meal_plan_entries')
+    recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='meal_plan_entries')
+    date = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.recipe.title} ({self.date or 'unplanned'})"

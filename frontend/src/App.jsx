@@ -14,6 +14,8 @@ import AddUser from './pages/AddUser.jsx';
 import UserList from './pages/UserList.jsx';
 import EditUser from './pages/EditUser.jsx';
 import EditTags from './pages/EditTags.jsx';
+import MealPlan from './pages/MealPlan.jsx';
+import MealPlanAddRecipes from './pages/MealPlanAddRecipes.jsx';
 
 function App() {
   return (
@@ -73,6 +75,22 @@ function App() {
         element={
           <ProtectedRoute>
             <ShoppingList />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/meal-plan"
+        element={
+          <ProtectedRoute>
+            <MealPlan />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/meal-plan/add"
+        element={
+          <ProtectedRoute>
+            <MealPlanAddRecipes />
           </ProtectedRoute>
         }
       />

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Recipe, Ingredient, Tag, ShoppingList, ShoppingListItem, get_or_create_tag
+from .models import Recipe, Ingredient, Tag, ShoppingList, ShoppingListItem, MealPlanEntry, get_or_create_tag
 
 
 class IngredientSerializer(serializers.ModelSerializer):
@@ -68,3 +68,11 @@ class ShoppingListSerializer(serializers.ModelSerializer):
     class Meta:
         model = ShoppingList
         fields = ['id', 'name', 'created_at', 'items']
+
+
+class MealPlanEntrySerializer(serializers.ModelSerializer):
+    recipe = RecipeSerializer(read_only=True)
+
+    class Meta:
+        model = MealPlanEntry
+        fields = ['id', 'recipe', 'date']

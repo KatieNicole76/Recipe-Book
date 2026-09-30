@@ -4,9 +4,10 @@ import CustomSelect from './CustomSelect';
 import { queryKeys } from '../queryKeys';
 import { unitConversion, pluralizeUnit } from '../utils/UnitConversion';
 import { fetchShoppingLists, addIngredientsToList } from '../utils/shoppingListApi';
+import { addToMealPlan } from '../utils/mealPlanApi';
 import { useModalA11y } from '../hooks/useModalA11y';
 
-function AddToShoppingListModal({ onClose, ingredients }) {
+function AddToShoppingListModal({ onClose, ingredients, recipeId }) {
   const queryClient = useQueryClient();
   const { data: lists = [] } = useQuery({
     queryKey: queryKeys.shoppingLists,
@@ -14,6 +15,7 @@ function AddToShoppingListModal({ onClose, ingredients }) {
   });
   const [selectedListId, setSelectedListId] = useState(null);
   const [checkedIds, setCheckedIds] = useState(() => new Set(ingredients.map((ing) => ing.id)));
+  const [addMealPlan, setAddMealPlan] = useState(false);
   const [saving, setSaving] = useState(false);
   const titleId = useId();
   const noListsId = useId();
@@ -33,31 +35,35 @@ function AddToShoppingListModal({ onClose, ingredients }) {
     });
   };
 
-  const handleAdd = async () => {
-    const selected = ingredients.filter((ing) => checkedIds.has(ing.id));
-    if (!effectiveListId || selected.length === 0) return;
+  const wantsShoppingListAdd = checkedIds.size > 0;
+  const canSubmit = (wantsShoppingListAdd && effectiveListId) || addMealPlan;
 
+  const handleAdd = async () => {
     setSaving(true);
     try {
-      const updated = await addIngredientsToList(
-        effectiveListId,
-        selected.map((ing) => ({ name: ing.name, amount: ing.amount, unit: ing.unit }))
-      );
-      queryClient.setQueryData(queryKeys.shoppingLists, (prev = []) =>
-        prev.map((l) => (l.id === updated.id ? updated : l))
-      );
+      if (wantsShoppingListAdd && effectiveListId) {
+        const selected = ingredients.filter((ing) => checkedIds.has(ing.id));
+        const updated = await addIngredientsToList(
+          effectiveListId,
+          selected.map((ing) => ({ name: ing.name, amount: ing.amount, unit: ing.unit }))
+        );
+        queryClient.setQueryData(queryKeys.shoppingLists, (prev = []) =>
+          prev.map((l) => (l.id === updated.id ? updated : l))
+        );
+      }
+      if (addMealPlan && recipeId) {
+        await addToMealPlan([recipeId]);
+        queryClient.invalidateQueries({ queryKey: queryKeys.mealPlan });
+      }
       onClose();
     } finally {
       setSaving(false);
     }
   };
 
-  const disabledReason =
-    lists.length === 0
-      ? 'Create a shopping list first'
-      : checkedIds.size === 0
-      ? 'Select at least one ingredient'
-      : null;
+  const disabledReason = !canSubmit
+    ? (lists.length === 0 ? 'Create a shopping list first, or check "Add to meal plan"' : 'Select at least one ingredient, or check "Add to meal plan"')
+    : null;
 
   return (
     <div
@@ -125,10 +131,22 @@ function AddToShoppingListModal({ onClose, ingredients }) {
           </div>
         )}
 
+        {recipeId && (
+          <label className="flex items-center gap-2 text-dark-green text-body-2 cursor-pointer mb-2">
+            <input
+              type="checkbox"
+              checked={addMealPlan}
+              onChange={(e) => setAddMealPlan(e.target.checked)}
+              className="w-2 h-2 accent-blue cursor-pointer"
+            />
+            Add to meal plan
+          </label>
+        )}
+
         <button
           type="button"
           onClick={handleAdd}
-          disabled={saving || lists.length === 0 || checkedIds.size === 0}
+          disabled={saving || !canSubmit}
           title={disabledReason || undefined}
           aria-describedby={lists.length === 0 ? noListsId : undefined}
           className="w-full text-body-1 bg-blue hover:bg-blue-dark text-beige p-1 rounded-full cursor-pointer

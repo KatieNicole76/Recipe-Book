@@ -4,6 +4,7 @@ import { apiFetchJson } from '../api';
 import { queryKeys } from '../queryKeys';
 import { useAuth } from '../context/AuthContext';
 import { Link, useNavigate } from 'react-router-dom';
+import { Calendar } from 'lucide-react';
 import OptionsModal from '../components/OptionsModal';
 import HoverIcon from '../components/HoverIcon';
 import RecipeGrid from '../components/RecipeGrid';
@@ -77,6 +78,13 @@ function RecipeList() {
         </Link>
         <Link to="/shopping-list" aria-label="Shopping List" className="group">
           <HoverIcon src={Shopping} hoverSrc={ShoppingDarker} imgClassName="max-h-[40px]" />
+        </Link>
+        <Link
+          to="/meal-plan"
+          aria-label="Meal Planning"
+          className="bg-blue hover:bg-blue-dark rounded-full flex items-center justify-center w-[40px] h-[40px] shrink-0"
+        >
+          <Calendar size={20} className="text-beige" />
         </Link>
         <Link to="/add-recipe" aria-label="Add Recipe" className="group">
           <HoverIcon src={Plus} hoverSrc={PlusDarker} imgClassName="max-h-[40px]" />

@@ -8,4 +8,5 @@ export const queryKeys = {
   shoppingLists: ['shopping-lists'],
   users: ['users'],
   user: (id) => ['users', 'detail', String(id)],
+  mealPlan: ['meal-plan'],
 };
