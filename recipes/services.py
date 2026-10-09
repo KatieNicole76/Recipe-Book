@@ -300,19 +300,21 @@ def copy_recipe_for_user(original, owner):
     return copy
 
 
-def apply_tiktok_media(recipe, url):
+def apply_tiktok_media(recipe, url, set_image=True):
     """
     Best-effort: fetches a TikTok video's thumbnail and full video and
     attaches them as recipe.image / recipe.video, overwriting whatever
     photo the recipe already had (uploaded, extracted, or otherwise) — a
-    linked TikTok is meant to become the recipe's photo. Failures on
+    linked TikTok is meant to become the recipe's photo. Pass
+    set_image=False to keep the recipe's photo as-is (e.g. the user
+    explicitly picked their own) and only attach the video. Failures on
     either piece are swallowed, since a fetch failing shouldn't block the
     rest of the recipe from saving. Caller is responsible for recipe.save().
     """
     try:
         info = fetch_tiktok_info(url)
         thumbnail_url = info.get('thumbnail')
-        if thumbnail_url:
+        if set_image and thumbnail_url:
             img_response = requests.get(thumbnail_url, headers=HEADERS, timeout=10)
             img_response.raise_for_status()
             recipe.image.save('thumbnail.jpg', ContentFile(img_response.content), save=False)

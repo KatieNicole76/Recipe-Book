@@ -129,8 +129,12 @@ def save_recipe(request):
     # saying "use this video's thumbnail instead". If the fetch fails
     # (network issue, dead link), fall back to whatever photo was already
     # provided rather than leaving the recipe with no photo at all.
+    # An explicitly uploaded photo is the user's own choice (the form
+    # clears it when a TikTok is linked, so one only arrives if they picked
+    # it afterward) — it keeps the video but must not lose the photo to the
+    # TikTok thumbnail.
     if recipe.source_url and is_tiktok_url(recipe.source_url):
-        apply_tiktok_media(recipe, recipe.source_url)
+        apply_tiktok_media(recipe, recipe.source_url, set_image=not uploaded_image)
 
     if not recipe.image and uploaded_image:
         recipe.image = uploaded_image
