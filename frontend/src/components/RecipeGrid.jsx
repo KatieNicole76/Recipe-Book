@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Pill from './Pill';
+import { useSessionState } from '../hooks/useSessionState';
 import CheckboxModal from './CheckboxModal';
 import SearchIcon from '../assets/search.png';
 import Filter from '../assets/filter.png';
@@ -10,7 +11,7 @@ const TYPE_LABELS = {
   dinner: 'Dinner',
   lunch: 'Lunch',
   breakfast: 'Breakfast',
-  dessert: 'Desert',
+  dessert: 'Dessert',
   side: 'Side',
   snack: 'Snack',
   other: 'Other',
@@ -25,10 +26,13 @@ const TYPE_LABELS = {
  * the recipe" into "tap to check/uncheck it" (a checkbox badge appears
  * top-left) — used by the meal plan picker to multi-select recipes
  * instead of navigating.
+ *
+ * Pass `storageKey` (unique per screen) to keep the search text and
+ * filters when the user leaves the screen and comes back.
  */
-function RecipeGrid({ recipes, emptyMessage = 'No recipes found.', selectedIds = null, onToggleSelect }) {
-  const [search, setSearch] = useState('');
-  const [activeFilters, setActiveFilters] = useState([]);
+function RecipeGrid({ recipes, emptyMessage = 'No recipes found.', selectedIds = null, onToggleSelect, storageKey = null }) {
+  const [search, setSearch] = useSessionState(storageKey && `${storageKey}:search`, '');
+  const [activeFilters, setActiveFilters] = useSessionState(storageKey && `${storageKey}:filters`, []);
   const [showTagPicker, setShowTagPicker] = useState(false);
 
   const allTags = [...new Set(recipes.flatMap((r) => r.tags || []))].sort();
@@ -64,16 +68,17 @@ function RecipeGrid({ recipes, emptyMessage = 'No recipes found.', selectedIds =
             aria-label="Search recipes"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full h-4 px-2 pr-6 rounded-full text-body-2 bg-white border border-gray box-border"
+            placeholder="Search"
+            className="w-full p-1 pr-4 text-body-2 rounded-lg bg-white box-border placeholder:text-gray-400"
           />
           <img
             src={SearchIcon}
             alt=""
-            className="max-h-[18px] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"
+            className="max-h-[18px] absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none opacity-60"
           />
         </div>
         <button onClick={() => setShowTagPicker((s) => !s)} aria-label="Add tag filter" className="cursor-pointer">
-          <img src={Filter} alt="" className="max-h-[20px] cursor-pointer mr-2" />
+          <img src={Filter} alt="" className="max-h-[26px] cursor-pointer mr-2" />
         </button>
       </div>
 
@@ -109,8 +114,9 @@ function RecipeGrid({ recipes, emptyMessage = 'No recipes found.', selectedIds =
                 alt={recipe.title}
                 className="w-full h-full object-cover block"
               />
+              {/* box-content + min-h-[2lh]: the bar is always at least two lines of text tall (plus padding), so one-line titles match two-line ones */}
               <div className="absolute bottom-0 left-0 right-0 bg-dark-green/85
-                text-white px-1 py-1 text-body-2 leading-tight">
+                text-white px-1 py-1 text-body-2 leading-tight box-content min-h-[2lh] flex items-center">
                 {recipe.title}
               </div>
               {selectedIds && (

@@ -16,9 +16,12 @@ import EditUser from './pages/EditUser.jsx';
 import EditTags from './pages/EditTags.jsx';
 import MealPlan from './pages/MealPlan.jsx';
 import MealPlanAddRecipes from './pages/MealPlanAddRecipes.jsx';
+import ScrollRestoration from './components/ScrollRestoration.jsx';
 
 function App() {
   return (
+    <>
+    <ScrollRestoration />
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/demo" element={<DemoEntry />} />
@@ -127,6 +130,7 @@ function App() {
         }
       />
     </Routes>
+    </>
   );
 }
 

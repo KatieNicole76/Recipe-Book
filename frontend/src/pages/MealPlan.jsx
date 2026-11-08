@@ -9,6 +9,7 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
+import PageHeader, { HEADER_ICON_BUTTON_CLASSES } from '../components/PageHeader';
 import MealPlanCard from '../components/MealPlanCard';
 import MealPlanUnplannedTile from '../components/MealPlanUnplannedTile';
 import MealPlanDropZone from '../components/MealPlanDropZone';
@@ -18,6 +19,8 @@ import { fetchMealPlan, updateMealPlanEntryDate, deleteMealPlanEntry } from '../
 import { getWeekDays } from '../utils/mealPlanDates';
 
 const UNPLANNED = 'unplanned';
+// How far back the week arrows go: just last week, not the whole history.
+const MIN_WEEK_OFFSET = -1;
 
 function MealPlan() {
   const queryClient = useQueryClient();
@@ -80,23 +83,15 @@ function MealPlan() {
 
   return (
     <div className="m-1 pb-10">
-      <div className="flex items-center">
-        <Link
-          to="/"
-          aria-label="Back"
-          className="bg-blue hover:bg-blue-dark rounded-full p-1 flex items-center justify-center w-3.5 h-3.5"
-        >
-          <ChevronLeft size={12} className="text-beige" />
-        </Link>
-        <h1 className="text-dark-green text-h2 my-3 flex-1 text-center">Meal Planning</h1>
-        <Link
-          to="/meal-plan/add"
-          aria-label="Add meals to plan"
-          className="bg-blue hover:bg-blue-dark rounded-full p-1 flex items-center justify-center w-3.5 h-3.5"
-        >
-          <Plus size={12} className="text-beige" />
-        </Link>
-      </div>
+      <PageHeader
+        title="Meal Planning"
+        backTo="/"
+        action={
+          <Link to="/meal-plan/add" aria-label="Add meals to plan" className={HEADER_ICON_BUTTON_CLASSES}>
+            <Plus size={12} className="text-beige" />
+          </Link>
+        }
+      />
 
       <ErrorText>{error}</ErrorText>
 
@@ -116,15 +111,19 @@ function MealPlan() {
           <div className="flex items-center justify-between mt-5 mb-2">
             <button
               type="button"
-              onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
-              disabled={weekOffset === 0}
+              onClick={() => setWeekOffset((w) => Math.max(MIN_WEEK_OFFSET, w - 1))}
+              disabled={weekOffset <= MIN_WEEK_OFFSET}
               aria-label="Previous week"
               className="text-dark-green disabled:opacity-30 cursor-pointer disabled:cursor-not-allowed"
             >
               <ChevronLeft size={20} />
             </button>
             <span className="text-dark-green text-body-1">
-              {weekOffset === 0 ? 'This Week' : `${weekDays[0].shortDate} – ${weekDays[6].shortDate}`}
+              {weekOffset === 0
+                ? 'This Week'
+                : weekOffset === -1
+                  ? 'Last Week'
+                  : `${weekDays[0].shortDate} – ${weekDays[6].shortDate}`}
             </span>
             <button
               type="button"

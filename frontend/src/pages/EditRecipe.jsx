@@ -1,4 +1,5 @@
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useGoBack } from '../hooks/useGoBack';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetchJson } from '../api';
 import { queryKeys } from '../queryKeys';
@@ -8,7 +9,7 @@ import RecipeReviewForm from '../components/RecipeReviewForm';
 
 function EditRecipe() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const goBack = useGoBack(`/recipe/${id}`);
   const queryClient = useQueryClient();
 
   const { data: recipe, isError } = useQuery({
@@ -21,7 +22,7 @@ function EditRecipe() {
     queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     queryClient.invalidateQueries({ queryKey: queryKeys.browseRecipes });
     queryClient.invalidateQueries({ queryKey: queryKeys.tags });
-    navigate(`/recipe/${id}`);
+    goBack();
   };
 
   return (
@@ -37,7 +38,7 @@ function EditRecipe() {
           saveButtonLabel="Save Changes"
           discardLabel="Discard Changes"
           onSaved={handleSaved}
-          onDiscard={() => navigate(`/recipe/${id}`)}
+          onDiscard={goBack}
         />
       )}
     </div>

@@ -2,6 +2,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetchJson } from '../api';
 import { queryKeys } from '../queryKeys';
+import { useGoBack } from '../hooks/useGoBack';
 import PageHeader from '../components/PageHeader';
 import ErrorText from '../components/ErrorText';
 import RecipeReviewForm from '../components/RecipeReviewForm';
@@ -15,6 +16,7 @@ import RecipeReviewForm from '../components/RecipeReviewForm';
 function SaveRecipeCopy() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const goBack = useGoBack(`/recipe/${id}`);
   const queryClient = useQueryClient();
 
   const { data: recipe, isError } = useQuery({
@@ -25,7 +27,8 @@ function SaveRecipeCopy() {
   const handleSaved = (saved) => {
     queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
     queryClient.invalidateQueries({ queryKey: queryKeys.tags });
-    navigate(`/recipe/${saved.id}`);
+    // Replace this edit screen so back from the new copy skips over it
+    navigate(`/recipe/${saved.id}`, { replace: true });
   };
 
   return (
@@ -41,7 +44,7 @@ function SaveRecipeCopy() {
           saveButtonLabel="Save to Your Cookbook"
           discardLabel="Cancel"
           onSaved={handleSaved}
-          onDiscard={() => navigate(`/recipe/${id}`)}
+          onDiscard={goBack}
         />
       )}
     </div>

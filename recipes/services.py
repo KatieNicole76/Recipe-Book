@@ -206,7 +206,7 @@ def extract_recipe_from_image(image_file, existing_tags=None):
 
 
 # ---------- url fetching ----------
-def extract_recipe_from_url(url, existing_tags=None):
+def extract_recipe_from_url(url, existing_tags=None, user_prompt=None):
     """
     Tries structured JSON-LD data first (cheaper, cleaner). Falls back to
     scraped visible text if no structured data is found.
@@ -230,11 +230,55 @@ def extract_recipe_from_url(url, existing_tags=None):
         prompt_context = f"Here is the webpage content:\n\n{page_text}"
 
     prompt = build_extraction_prompt(existing_tags)
-    content = f"{prompt}\n\n{prompt_context}"
+    content = _with_user_description(f"{prompt}\n\n{prompt_context}", user_prompt)
     result = _call_claude_and_parse(content)
     result['image_url'] = image_url  # attach separately, not part of the LLM's job
 
     return _capitalize_tags(result)
+
+
+# ---------- free-text prompt ----------
+USER_DESCRIPTION_GUIDANCE = (
+    "Pull out every ingredient they mention (with amounts and units when given) "
+    "and split what they describe doing into separate, clear steps in order. "
+    "You may tidy grammar and capitalization in the steps, but do not add "
+    "ingredients, amounts, times, or temperatures they did not mention."
+)
+
+
+def _with_user_description(content, user_prompt):
+    """
+    Appends the user's own typed-out recipe to a link-based extraction
+    (e.g. a TikTok with no recipe in its caption). It takes priority over
+    whatever the page/caption says, since the user wrote it on purpose.
+    """
+    if not user_prompt:
+        return content
+    return (
+        f"{content}\n\n"
+        "The user also typed out the recipe in their own words. Treat this as the "
+        "main source of ingredients and steps; use the content above only to fill "
+        "in details (like the title) that the user's description doesn't cover. "
+        f"{USER_DESCRIPTION_GUIDANCE}\n\n"
+        f"User's description:\n{user_prompt}"
+    )
+
+
+def extract_recipe_from_prompt(text, existing_tags=None):
+    """
+    Turns a casual, typed-out description ("add 1 egg and 4 cups of flour
+    and mix together, then bake") into the same structured recipe shape
+    the photo/URL extractors return, ready for review.
+    """
+    prompt = build_extraction_prompt(existing_tags)
+    content = (
+        f"{prompt}\n\n"
+        "The user typed this description of a recipe in their own words. "
+        f"{USER_DESCRIPTION_GUIDANCE} "
+        "If they did not give a title, make up a short, plain one that fits.\n\n"
+        f"Description:\n{text}"
+    )
+    return _capitalize_tags(_call_claude_and_parse(content))
 
 
 # ---------- tiktok ----------
@@ -328,7 +372,7 @@ def apply_tiktok_media(recipe, url, set_image=True):
         logger.warning('Could not download TikTok video for %s: %s', url, e)
 
 
-def extract_recipe_from_tiktok(url, existing_tags=None):
+def extract_recipe_from_tiktok(url, existing_tags=None, user_prompt=None):
     """
     Feeds the video's caption into the same extraction pipeline used for
     photos/URLs. If the caption doesn't actually contain a recipe, this
@@ -339,7 +383,9 @@ def extract_recipe_from_tiktok(url, existing_tags=None):
     caption = info.get('description') or ''
 
     prompt = build_extraction_prompt(existing_tags)
-    content = f"{prompt}\n\nHere is a TikTok video's caption:\n\n{caption}"
+    content = _with_user_description(
+        f"{prompt}\n\nHere is a TikTok video's caption:\n\n{caption}", user_prompt
+    )
     try:
         result = _call_claude_and_parse(content)
     except ValueError:

@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useGoBack } from '../hooks/useGoBack';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, useDragControls } from 'framer-motion';
 import { ChevronLeft, ShoppingCart, ExternalLink, Video, Plus } from 'lucide-react';
@@ -15,6 +16,7 @@ import ErrorText from '../components/ErrorText';
 import DemoTip from '../components/DemoTip';
 import VideoPlayerModal from '../components/VideoPlayerModal';
 import HoverIcon from '../components/HoverIcon';
+import { HEADER_ICON_BUTTON_CLASSES } from '../components/PageHeader';
 import OptionsIcon from '../assets/options.svg';
 import OptionsIconDarker from '../assets/options-darker.svg';
 
@@ -33,7 +35,6 @@ function RecipeDetail() {
 function RecipeDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const queryClient = useQueryClient();
   const { username } = useAuth();
   const [expanded, setExpanded] = useState(false);
@@ -51,17 +52,9 @@ function RecipeDetailPage() {
     queryFn: () => apiFetchJson(`/api/recipes/${id}/`),
   });
 
-  // A recipe can now be reached from Home, Browse, or the meal plan — go
-  // back to wherever that actually was instead of always landing on Home.
-  // location.key is 'default' when there's no real in-app history to pop
-  // (e.g. a fresh page load straight to this URL).
-  const handleBack = () => {
-    if (location.key === 'default') {
-      navigate('/');
-    } else {
-      navigate(-1);
-    }
-  };
+  // A recipe can be reached from Home, Browse, or the meal plan — go back
+  // to wherever that actually was instead of always landing on Home.
+  const handleBack = useGoBack('/');
 
   const handleDelete = async () => {
     setDeleteError(null);
@@ -70,7 +63,7 @@ function RecipeDetailPage() {
       queryClient.removeQueries({ queryKey: queryKeys.recipe(id) });
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
       queryClient.invalidateQueries({ queryKey: queryKeys.browseRecipes });
-      navigate('/');
+      handleBack();
     } catch (err) {
       setDeleteError(err.message);
     }
@@ -81,7 +74,8 @@ function RecipeDetailPage() {
     try {
       const saved = await saveRecipeCopy(id);
       queryClient.invalidateQueries({ queryKey: queryKeys.recipes });
-      navigate(`/recipe/${saved.id}`);
+      // Replace the original's page so back from the copy returns to where they came from
+      navigate(`/recipe/${saved.id}`, { replace: true });
     } catch (err) {
       setSaveCopyError(err.message);
     }
@@ -120,8 +114,7 @@ function RecipeDetailPage() {
         type="button"
         onClick={handleBack}
         aria-label="Back"
-        className="absolute top-2 left-1 bg-blue hover:bg-blue-dark rounded-full p-1
-          flex items-center justify-center z-20 cursor-pointer">
+        className={`absolute top-2 left-1 ${HEADER_ICON_BUTTON_CLASSES}`}>
         <ChevronLeft size={12} className="text-beige" />
       </button>
 
@@ -221,7 +214,7 @@ function RecipeDetailPage() {
               ) : (
                 <>
                   <span className="text-white font-mono font-normal tracking-widest text-[11px] opacity-80 truncate max-w-[200px] mr-auto ml-2">
-                    From {ownerLabel}'s Cook Book
+                    From {ownerLabel}'s Cookbook
                   </span>
                   {(recipe.video || (recipe.source_url && isTiktokUrl(recipe.source_url))) && (
                     <button

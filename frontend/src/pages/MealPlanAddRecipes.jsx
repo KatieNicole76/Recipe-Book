@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useGoBack } from '../hooks/useGoBack';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiFetchJson } from '../api';
 import { queryKeys } from '../queryKeys';
@@ -9,7 +9,7 @@ import RecipeGrid from '../components/RecipeGrid';
 import ErrorText from '../components/ErrorText';
 
 function MealPlanAddRecipes() {
-  const navigate = useNavigate();
+  const goBack = useGoBack('/meal-plan');
   const queryClient = useQueryClient();
   const { data: recipes = [] } = useQuery({
     queryKey: queryKeys.recipes,
@@ -30,7 +30,7 @@ function MealPlanAddRecipes() {
     try {
       await addToMealPlan(selectedIds);
       queryClient.invalidateQueries({ queryKey: queryKeys.mealPlan });
-      navigate('/meal-plan');
+      goBack();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -44,7 +44,7 @@ function MealPlanAddRecipes() {
 
       <ErrorText>{error}</ErrorText>
 
-      <RecipeGrid recipes={recipes} selectedIds={selectedIds} onToggleSelect={toggleSelect} />
+      <RecipeGrid recipes={recipes} storageKey="meal-plan-picker" selectedIds={selectedIds} onToggleSelect={toggleSelect} />
 
       <div className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[640px] bg-beige border-t border-gray p-2">
         <button

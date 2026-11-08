@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
 import { ChevronLeft } from 'lucide-react';
+import { useGoBack } from '../hooks/useGoBack';
 
 /**
  * Shared page header: a back button, a centered title, and a spacer to
@@ -8,23 +8,29 @@ import { ChevronLeft } from 'lucide-react';
  *
  * Props:
  * - title: the page heading text
- * - backTo: the route the back button links to
+ * - backTo: where the back button goes when there's no previous screen to
+ *   return to (e.g. the page was opened directly) — otherwise it returns
+ *   to whatever screen the user was on before
+ * - onBack: optional — when set, the back button calls this instead
+ *   (for stepping back within a single page)
+ * - action: optional element shown on the right (e.g. a + button);
+ *   defaults to an empty spacer so the title stays centered
  */
-function PageHeader({ title, backTo }) {
+// Shared round blue icon-button look (back arrow, header actions) so they're all the same size.
+export const HEADER_ICON_BUTTON_CLASSES = `bg-blue hover:bg-blue-dark rounded-full p-1 flex items-center justify-center
+  z-20 w-3.5 h-3.5 cursor-pointer`;
+
+function PageHeader({ title, backTo = '/', onBack, action = null }) {
+  const goBack = useGoBack(backTo);
   return (
     <div className="flex items-center">
-      <Link
-        to={backTo}
-        aria-label="Back"
-        className="bg-blue hover:bg-blue-dark rounded-full p-1 flex items-center justify-center
-         z-20 w-3.5 h-3.5"
-      >
+      <button type="button" onClick={onBack || goBack} aria-label="Back" className={HEADER_ICON_BUTTON_CLASSES}>
         <ChevronLeft size={12} className="text-beige" />
-      </Link>
+      </button>
 
       <h1 className="text-dark-green text-h2 my-3 flex-1 text-center">{title}</h1>
 
-      <div className="w-3.5 h-3.5" />
+      {action || <div className="w-3.5 h-3.5" />}
     </div>
   );
 }

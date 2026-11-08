@@ -9,6 +9,7 @@ urlpatterns = [
     path('meal-plan/<int:pk>/delete/', meal_plan.meal_plan_delete, name='meal-plan-delete'),
     path('extract/', views.extract_recipe, name='extract-recipe'),
     path('extract-url/', views.extract_recipe_from_url_view, name='extract-recipe-url'),
+    path('extract-prompt/', views.extract_recipe_from_prompt_view, name='extract-recipe-prompt'),
     path('save/', views.save_recipe, name='save-recipe'),
     path('tags/', views.TagListView.as_view(), name='tag-list'),
     path('tags/<int:pk>/', views.delete_tag, name='delete-tag'),

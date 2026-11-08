@@ -14,11 +14,11 @@ function Browse() {
   return (
     <div className="m-1">
       <DemoTip>
-        This page will show you a list of recieps from other users. Users can be linked as
+        This page will show you a list of recipes from other users. Users can be linked as
         "Families" and share recipes with each other.
       </DemoTip>
       <PageHeader title="Browse" backTo="/" />
-      <RecipeGrid recipes={recipes} emptyMessage="No recipes yet." />
+      <RecipeGrid recipes={recipes} emptyMessage="No recipes yet." storageKey="browse" />
     </div>
   );
 }

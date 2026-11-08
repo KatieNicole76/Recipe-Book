@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { useGoBack } from '../hooks/useGoBack';
 import PageHeader from '../components/PageHeader';
 import ErrorText from '../components/ErrorText';
 import UserForm from '../components/UserForm';
@@ -8,7 +9,7 @@ import { fetchUser } from '../utils/userApi';
 
 function EditUser() {
   const { id } = useParams();
-  const navigate = useNavigate();
+  const goBack = useGoBack('/admin/users');
   const { data: user, isError, error } = useQuery({
     queryKey: queryKeys.user(id),
     queryFn: () => fetchUser(id),
@@ -24,8 +25,8 @@ function EditUser() {
         <UserForm
           userId={id}
           initialData={user}
-          onSaved={() => navigate('/admin/users')}
-          onDeleted={() => navigate('/admin/users')}
+          onSaved={goBack}
+          onDeleted={goBack}
         />
       )}
     </div>

@@ -317,7 +317,7 @@ function RecipeReviewForm({
         Meal preppable
       </label>
 
-      <label className="text-dark-green text-h3">Tags</label>
+      <label className="text-dark-green text-h4">Tags</label>
 
       {result.tags?.length > 0 && (
         <div className="flex gap-1 flex-wrap my-2">
@@ -344,7 +344,7 @@ function RecipeReviewForm({
         addNewLabel="+ Add New"
       />
 
-      <h3 className="text-dark-green text-h3 mb-2">Ingredients</h3>
+      <h3 className="text-dark-green text-h4 mb-2">Ingredients</h3>
       {result.ingredients?.map((ing, i) => (
         <div key={ing._key} className="pb-3">
           <div className="flex gap-1 items-center mb-1 mt-2">
@@ -398,7 +398,7 @@ function RecipeReviewForm({
         + Add Ingredient
       </button>
 
-      <h3 className="text-dark-green text-h3 mt-5 mb-2">Steps</h3>
+      <h3 className="text-dark-green text-h4 mt-5 mb-2">Steps</h3>
       <textarea
         value={result.steps || ''}
         onChange={(e) => updateField('steps', e.target.value)}

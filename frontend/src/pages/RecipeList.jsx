@@ -91,7 +91,7 @@ function RecipeList() {
         </Link>
       </div>
 
-      <RecipeGrid recipes={recipes} />
+      <RecipeGrid recipes={recipes} storageKey="home" />
     </div>
   );
 }

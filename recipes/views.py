@@ -19,6 +19,7 @@ from .services import (
     extract_recipe_from_image,
     extract_recipe_from_url,
     extract_recipe_from_tiktok,
+    extract_recipe_from_prompt,
     is_tiktok_url,
     fetch_tiktok_info,
     apply_tiktok_media,
@@ -63,15 +64,18 @@ def extract_recipe_from_url_view(request):
     url = request.data.get('url')
     if not url:
         return Response({'error': 'No URL provided'}, status=400)
+    user_prompt = (request.data.get('prompt') or '').strip()
+    if len(user_prompt) > 5000:
+        return Response({'error': 'That description is too long (5000 characters max)'}, status=400)
 
     if not check_and_increment_demo_limit(request.user, 'extraction_count', DEMO_EXTRACTION_LIMIT):
         return Response({'error': "You've reached the demo's extraction limit. Thanks for trying it out!"}, status=429)
 
     try:
         if is_tiktok_url(url):
-            recipe_data = extract_recipe_from_tiktok(url, existing_tags=_user_tag_names(request.user))
+            recipe_data = extract_recipe_from_tiktok(url, existing_tags=_user_tag_names(request.user), user_prompt=user_prompt)
         else:
-            recipe_data = extract_recipe_from_url(url, existing_tags=_user_tag_names(request.user))
+            recipe_data = extract_recipe_from_url(url, existing_tags=_user_tag_names(request.user), user_prompt=user_prompt)
     except requests.RequestException:
         return Response({'error': 'Could not fetch that URL'}, status=502)
     except ValueError as e:
@@ -80,6 +84,27 @@ def extract_recipe_from_url_view(request):
     except Exception as e:
         logger.warning('TikTok extraction failed: %s', e)
         return Response({'error': 'Could not fetch that TikTok video'}, status=502)
+
+    return Response(recipe_data, status=200)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def extract_recipe_from_prompt_view(request):
+    text = (request.data.get('prompt') or '').strip()
+    if not text:
+        return Response({'error': 'No description provided'}, status=400)
+    if len(text) > 5000:
+        return Response({'error': 'That description is too long (5000 characters max)'}, status=400)
+
+    if not check_and_increment_demo_limit(request.user, 'extraction_count', DEMO_EXTRACTION_LIMIT):
+        return Response({'error': "You've reached the demo's extraction limit. Thanks for trying it out!"}, status=429)
+
+    try:
+        recipe_data = extract_recipe_from_prompt(text, existing_tags=_user_tag_names(request.user))
+    except ValueError as e:
+        logger.warning('Prompt extraction failed to parse a response: %s', e)
+        return Response({'error': 'Could not turn that into a recipe'}, status=502)
 
     return Response(recipe_data, status=200)
 
