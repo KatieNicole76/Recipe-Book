@@ -25,6 +25,7 @@ from .services import (
     apply_tiktok_media,
     copy_recipe_for_user,
     get_shopping_item_category,
+    remember_shopping_item_category,
     HEADERS,
 )
 from .demo import is_demo_user, same_demo_partition, check_and_increment_demo_limit, DEMO_EXTRACTION_LIMIT, DEMO_CATEGORIZATION_LIMIT
@@ -480,12 +481,26 @@ def shopping_list_add_ingredients(request, pk):
 @api_view(['PATCH'])
 @permission_classes([IsAuthenticated])
 def shopping_list_item_toggle(request, item_pk):
+    """
+    Updates one shopping list item. Body takes either or both of:
+    - is_checked: check it off / put it back on the list
+    - category: move it to another section (also remembered for next time)
+    """
     item = get_object_or_404(ShoppingListItem, pk=item_pk, shopping_list__owner=request.user)
     is_checked = request.data.get('is_checked')
-    if is_checked is None:
-        return Response({'error': 'is_checked is required'}, status=400)
+    category = request.data.get('category')
+    if is_checked is None and category is None:
+        return Response({'error': 'is_checked or category is required'}, status=400)
 
-    item.is_checked = bool(is_checked)
-    item.checked_at = timezone.now() if item.is_checked else None
+    if category is not None:
+        valid_categories = {value for value, _ in ShoppingListItem.CATEGORY_CHOICES}
+        if category not in valid_categories:
+            return Response({'error': 'Unknown category'}, status=400)
+        item.category = category
+        remember_shopping_item_category(item.name, category)
+
+    if is_checked is not None:
+        item.is_checked = bool(is_checked)
+        item.checked_at = timezone.now() if item.is_checked else None
     item.save()
     return Response(ShoppingListItemSerializer(item).data, status=200)

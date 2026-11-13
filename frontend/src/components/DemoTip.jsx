@@ -2,12 +2,6 @@ import { useState } from 'react';
 import { X } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-/**
- * A little contextual callout, shown only in demo mode, explaining what
- * the current page does — lets a recruiter click around and understand
- * the feature set without narration. Renders nothing for real users, and
- * can be dismissed (per page visit — remounting the page brings it back).
- */
 function DemoTip({ children, className = '' }) {
   const { isDemo } = useAuth();
   const [dismissed, setDismissed] = useState(false);

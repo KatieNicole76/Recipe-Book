@@ -59,7 +59,8 @@ Use this exact schema:
   "recipe_type": one of {RECIPE_TYPE_OPTIONS},
   "steps": string (one per line, do not number the steps, when it mentions an ingredient,
     use the exact name and amount from the ingredients list. Show the amount as a fraction instead of a decimal.
-    use the abbreviated unit from the ingredients list. If no amount is given, do not make one up.),
+    use the abbreviated unit from the ingredients list. If no amount is given, do not make one up.), if there are 
+    no steps do not invent any, just return an empty string
   "ingredients": [
     {{
       "name": string,
@@ -149,14 +150,32 @@ def categorize_shopping_item(name):
     return category if category in SHOPPING_CATEGORY_OPTIONS else 'other'
 
 
+def normalize_item_name(name):
+    """Cache key for an item name: trimmed, lowercased, inner spaces collapsed."""
+    return ' '.join(name.split()).lower()
+
+
+def remember_shopping_item_category(name, category):
+    """
+    Records a user's manual re-categorization (dragging an item to another
+    section) so the same item lands there automatically next time.
+    """
+    normalized = normalize_item_name(name)
+    updated = IngredientCategory.objects.filter(name__iexact=normalized).update(category=category)
+    if not updated:
+        IngredientCategory.objects.create(name=normalized, category=category)
+
+
 def get_shopping_item_category(name):
     """
     Looks up a cached category for this item name (case/whitespace
     insensitive) before falling back to the AI call, so any given
     ingredient only ever needs categorizing once.
     """
-    normalized = name.strip().lower()
-    cached = IngredientCategory.objects.filter(name=normalized).first()
+    normalized = normalize_item_name(name)
+    # iexact as well as the lowercased key, so rows saved before names were
+    # normalized ("Green Onions") still count as already categorized.
+    cached = IngredientCategory.objects.filter(name__iexact=normalized).first()
     if cached:
         return cached.category
 

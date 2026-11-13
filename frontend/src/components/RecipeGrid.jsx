@@ -29,8 +29,17 @@ const TYPE_LABELS = {
  *
  * Pass `storageKey` (unique per screen) to keep the search text and
  * filters when the user leaves the screen and comes back.
+ *
+ * `toolbarExtra` renders under the search bar (e.g. Browse's "Show only new").
  */
-function RecipeGrid({ recipes, emptyMessage = 'No recipes found.', selectedIds = null, onToggleSelect, storageKey = null }) {
+function RecipeGrid({
+  recipes,
+  emptyMessage = 'No recipes found.',
+  selectedIds = null,
+  onToggleSelect,
+  storageKey = null,
+  toolbarExtra = null,
+}) {
   const [search, setSearch] = useSessionState(storageKey && `${storageKey}:search`, '');
   const [activeFilters, setActiveFilters] = useSessionState(storageKey && `${storageKey}:filters`, []);
   const [showTagPicker, setShowTagPicker] = useState(false);
@@ -81,6 +90,8 @@ function RecipeGrid({ recipes, emptyMessage = 'No recipes found.', selectedIds =
           <img src={Filter} alt="" className="max-h-[26px] cursor-pointer mr-2" />
         </button>
       </div>
+
+      {toolbarExtra}
 
       <CheckboxModal
         open={showTagPicker}

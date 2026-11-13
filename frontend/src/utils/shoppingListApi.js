@@ -59,6 +59,16 @@ export async function addIngredientsToList(listId, ingredients) {
   return response.json();
 }
 
+export async function moveShoppingItem(itemId, category) {
+  const response = await apiFetch(`/api/recipes/shopping-list-items/${itemId}/`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ category }),
+  });
+  if (!response.ok) throw new Error('Could not move item');
+  return response.json();
+}
+
 export async function toggleShoppingItem(itemId, isChecked) {
   const response = await apiFetch(`/api/recipes/shopping-list-items/${itemId}/`, {
     method: 'PATCH',
