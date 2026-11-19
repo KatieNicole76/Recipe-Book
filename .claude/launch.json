@@ -30,6 +30,18 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "../../OneDrive/Desktop/Coding Projects/Personal Website/personal-website", "run", "dev", "--", "--port", "5181"],
       "port": 5181
+    },
+    {
+      "name": "chore-tracker",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:/Users/katie/Documents/Chore Tracker/frontend", "run", "dev", "--", "--port", "5190", "--strictPort"],
+      "port": 5190
+    },
+    {
+      "name": "chore-tracker-api",
+      "runtimeExecutable": "C:/Users/katie/Documents/Chore Tracker/venv/Scripts/python.exe",
+      "runtimeArgs": ["C:/Users/katie/Documents/Chore Tracker/manage.py", "runserver", "127.0.0.1:8010"],
+      "port": 8010
     }
   ]
 }
